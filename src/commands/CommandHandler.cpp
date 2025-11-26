@@ -43,6 +43,17 @@ std::string CommandHandler::execute(const std::vector<std::string_view>& args) {
         return std::string(CommandHandler::OK);
     }
 
+    if (args.size() == 5 && args[0] == "SET") {
+    std::string key = std::string(args[1]);
+    std::string value = std::string(args[2]);
+
+        if (args[3] == "PX") {
+            uint64_t ttl = std::stoull(std::string(args[4]));
+            db.set(key, value, ttl);
+            return std::string(OK);
+        }
+    }
+
     if (args.size() == 2 && args[0] == "GET") {
         std::string key(args[1]);
         std::string value;
