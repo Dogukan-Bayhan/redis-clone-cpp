@@ -52,14 +52,30 @@ int main(int argc, char **argv) {
   std::cout << "Logs from your program will appear here!\n";
   
 
+  // --------------------------------------------------
+  // -------------------- MY CODE ---------------------
+  // --------------------------------------------------
+
   // Dummy PONG message
   const char* response = "+PONG\r\n";
+  int client_fd = accept(server_fd, (struct sockaddr *) &client_addr, (socklen_t *) &client_addr_len);
+
+  char buffer[1024]
 
   // Accepts return a file descriptor
-  int client_fd = accept(server_fd, (struct sockaddr *) &client_addr, (socklen_t *) &client_addr_len);
-  
-  send(client_fd, response, strlen(response), 0);
-  
+  while(true) {
+    int n = read(client_fs, buffer, sizeof(buffer));
+
+    send(client_fd, response, strlen(response), 0);
+  }
+
+
+
+
+  // --------------------------------------------------
+  // --------------- MY CODE ENDS HERE ----------------
+  // --------------------------------------------------
+
   
   std::cout << "Client connected\n";
   
