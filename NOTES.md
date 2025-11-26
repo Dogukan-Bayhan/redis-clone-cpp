@@ -4,3 +4,5 @@ Sonrasında öncelikle bir sockaddr_in türünde bir değişken oluşturup bunu 
 
 
 1-> RESP(Redis Serialization Protocol) -> Redisin kendi metinsel iletişim protokolü. Biz de ilk olarak client'tan gelen mesajı önemsemeden her gelen istekte +PONG\r\n response'unu dönüyoruz.
+
+2-> Şimdi aynı anda hem yeni client hem de bir clienttan birden fazla message alabilmek adına bir event loop kodladım. Burada select çağrısını kullanıyoruz posixten. Select olana kadar kod uykuya dalıyor fakat select çağrıldıktan sonrasında kod 

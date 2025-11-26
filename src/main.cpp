@@ -7,6 +7,7 @@
 #include <sys/socket.h>
 #include <arpa/inet.h>
 #include <netdb.h>
+#include <vector>
 
 
 // I implement a event loop but if you want you can use 
@@ -29,6 +30,47 @@ void handle_client(int client_fd) {
             write(client_fd, resp.c_str(), resp.size());
         }
     }
+}
+
+int parseInteherUntilCRLF(const std::string& s, int& pos) {
+  int start = pos;
+  while(s[pos] != '\r') pos++;
+  int number = std::stoi(s.substr(start, pos - start));
+  pos += 2;
+  return number;
+}
+
+void skipCRLF(const std::string& s, int& pos) {
+  if(s[pos] == '\r' && s[pos+1] == '\n') {
+    pos += 2;
+  }
+}
+
+std::vector<std::string> parser(char* buffer) {
+  std::string data(buffer);
+  std::vector<std::string> values;
+
+  int pos = 0;
+
+  if(data[pos] != '*') return{};
+  pos++;
+
+  int len = parseInteherUntilCRLF(data, pos);
+
+  for(int i = 0;i < len; i++) {
+    if(data[pos] != '$') return {};
+    pos++;
+    int word_len = parseInteherUntilCRLF(data, pos);
+
+    std::string word = data.substr(pos, word_len);
+    pos += word_len;
+
+    values.push_back(word);
+    skipCRLF(data, pos);
+  }
+
+  return values;
+
 }
 
 
@@ -124,6 +166,12 @@ int main(int argc, char **argv) {
           if(request.find("PING") != std::string::npos) {
             std::string responde("+PONG\r\n");
             write(fd, responde.c_str(), responde.size());
+          } else {
+            std::vector<std::string> words = parser(buffer);
+            if(words[0] == "ECHO") {
+              std::string value = words[1];
+              write(fd, value.c_str(), value.size());
+            }
           }
         }
       }
