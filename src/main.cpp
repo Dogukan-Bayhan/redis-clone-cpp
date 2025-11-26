@@ -64,12 +64,16 @@ int main(int argc, char **argv) {
 
   // Accepts return a file descriptor
   while(true) {
-    int n = read(client_fs, buffer, sizeof(buffer));
+    int n = read(client_fd, buffer, sizeof(buffer));
+
+    if(n <= 0) {
+      break;
+    }
 
     send(client_fd, response, strlen(response), 0);
   }
 
-
+  close(client_fd)
 
 
   // --------------------------------------------------
