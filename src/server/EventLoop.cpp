@@ -7,7 +7,7 @@
 #include <string>
 #include <arpa/inet.h>
 
-EventLoop::EventLoop(int serverFd) : server_fd(serverFd) {
+EventLoop::EventLoop(int serverFd) : server_fd(serverFd), db(), handler(db){
     FD_ZERO(&current_fds);
     FD_SET(server_fd, &current_fds);
 }
@@ -51,7 +51,7 @@ void EventLoop::run() {
             auto args = RESPParser::parse(request);
             if (args.empty()) continue;
 
-            std::string reply = CommandHandler::execute(args);
+            std::string reply = handler.execute(args);
             write(fd, reply.c_str(), reply.size());
         }
     }
