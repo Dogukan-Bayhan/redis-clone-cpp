@@ -73,7 +73,7 @@ int main(int argc, char **argv) {
     send(client_fd, response, strlen(response), 0);
   }
 
-  close(client_fd)
+  close(client_fd);
 
 
   // --------------------------------------------------
