@@ -8,6 +8,30 @@
 #include <arpa/inet.h>
 #include <netdb.h>
 
+
+// I implement a event loop but if you want you can use 
+// threads for the same job in a different way.
+void handle_client(int client_fd) {
+  char buffer[1024];
+
+   while (true) {
+        memset(buffer, 0, sizeof(buffer));
+        int n = read(client_fd, buffer, sizeof(buffer));
+
+        if (n <= 0) {
+            close(client_fd);
+            return;  
+        }
+
+        std::string req(buffer);
+        if (req.find("PING") != std::string::npos) {
+            std::string resp = "+PONG\r\n";
+            write(client_fd, resp.c_str(), resp.size());
+        }
+    }
+}
+
+
 int main(int argc, char **argv) {
   // Flush after every std::cout / std::cerr
   std::cout << std::unitbuf;
@@ -56,35 +80,56 @@ int main(int argc, char **argv) {
   // -------------------- MY CODE ---------------------
   // --------------------------------------------------
 
-  // Dummy PONG message
-  int client_fd = accept(server_fd, (struct sockaddr *) &client_addr, (socklen_t *) &client_addr_len);
+  char buffer[1024];
 
-  std::cout << "Client connected\n";
 
-  // Read buffer
-  char buffer[1024] = {0};
+  fd_set current_fds;
+  FD_ZERO(&current_fds);
+  FD_SET(server_fd, &current_fds);
 
-  // Accepts return a file descriptor
-  while(true) {
-    int bytes_read = read(client_fd, buffer, sizeof(buffer));
+  int max_fd = server_fd;
 
-    if(bytes_read < 0) {
-      std::cerr << "failed to read\n";
+  while(true){
+    fd_set ready_fds = current_fds;
+
+    int activity = select(max_fd + 1, &ready_fds, NULL, NULL, NULL);
+    if(activity < 0) {
+      std::cerr << "select error\n";
       break;
     }
-    std::string request(buffer);
-    if (request.find("PING") != std::string::npos) {
-      std::string respond ("+PONG\r\n");
-      
-      write(client_fd, respond.c_str(), respond.size());
+
+    if(FD_ISSET(server_fd, &ready_fds)) {
+      int new_client = accept(server_fd, (struct sockaddr*)&client_addr, (socklen_t*)&client_addr_len);
+      std::cout << "New client connected: fd = " << new_client << "\n";
 
 
-      //send(client_fd, response, strlen(response), 0);
+      FD_SET(new_client, &current_fds);
+      if(new_client > max_fd) {
+        max_fd = new_client;
+      }
+    }
+
+    for(int fd = 0; fd <= max_fd; fd++) {
+      if(fd != server_fd && FD_ISSET(fd, &ready_fds)) {
+
+        memset(buffer, 0, sizeof(buffer));
+        int bytes_read = read(fd, buffer, sizeof(buffer));
+
+        if(bytes_read <= 0) {
+          std::cout << "Client disconnected: fd = " << fd << "\n";
+          close(fd);
+          FD_CLR(fd, &current_fds);
+        } else {
+          std::string request(buffer);
+          if(request.find("PING") != std::string::npos) {
+            std::string responde("+PONG\r\n");
+            write(fd, responde.c_str(), responde.size());
+          }
+        }
+      }
     }
   }
-
-  close(client_fd);
-
+  
 
   // --------------------------------------------------
   // --------------- MY CODE ENDS HERE ----------------
