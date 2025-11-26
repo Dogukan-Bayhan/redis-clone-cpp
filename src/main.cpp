@@ -13,6 +13,7 @@ int main(int argc, char **argv) {
   std::cout << std::unitbuf;
   std::cerr << std::unitbuf;
   
+  // Creates a new socket in Linux Kernel
   int server_fd = socket(AF_INET, SOCK_STREAM, 0);
   if (server_fd < 0) {
    std::cerr << "Failed to create server socket\n";
@@ -50,7 +51,16 @@ int main(int argc, char **argv) {
   // You can use print statements as follows for debugging, they'll be visible when running tests.
   std::cout << "Logs from your program will appear here!\n";
   
-  accept(server_fd, (struct sockaddr *) &client_addr, (socklen_t *) &client_addr_len);
+
+  // Dummy PONG message
+  const char* response = "+PONG\r\n";
+
+  // Accepts return a file descriptor
+  int client_fd = accept(server_fd, (struct sockaddr *) &client_addr, (socklen_t *) &client_addr_len);
+  
+  send(client_fd, response, strlen(response), 0)
+  
+  
   std::cout << "Client connected\n";
   
   close(server_fd);
