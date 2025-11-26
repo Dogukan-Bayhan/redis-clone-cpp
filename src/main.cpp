@@ -57,20 +57,30 @@ int main(int argc, char **argv) {
   // --------------------------------------------------
 
   // Dummy PONG message
-  const char* response = "+PONG\r\n";
   int client_fd = accept(server_fd, (struct sockaddr *) &client_addr, (socklen_t *) &client_addr_len);
 
-  char buffer[1024];
+  std::cout << "Client connected\n";
+
+  // Read buffer
+  char buffer[1024] = {0};
 
   // Accepts return a file descriptor
   while(true) {
-    int n = read(client_fd, buffer, sizeof(buffer));
+    int bytes_read = read(client_fd, buffer, sizeof(buffer));
 
-    if(n <= 0) {
+    if(bytes_read < 0) {
+      std::cerr << "failed to read\n";
       break;
     }
+    std::string request(buffer);
+    if (request.find("PING") != std::string::npos) {
+      std::string respond ("+PONG\r\n");
+      
+      write(client_fd, respond.c_str(), respond.size());
 
-    send(client_fd, response, strlen(response), 0);
+
+      //send(client_fd, response, strlen(response), 0);
+    }
   }
 
   close(client_fd);
@@ -79,9 +89,6 @@ int main(int argc, char **argv) {
   // --------------------------------------------------
   // --------------- MY CODE ENDS HERE ----------------
   // --------------------------------------------------
-
-  
-  std::cout << "Client connected\n";
   
   close(server_fd);
 
