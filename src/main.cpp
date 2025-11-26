@@ -58,7 +58,7 @@ int main(int argc, char **argv) {
   // Accepts return a file descriptor
   int client_fd = accept(server_fd, (struct sockaddr *) &client_addr, (socklen_t *) &client_addr_len);
   
-  send(client_fd, response, strlen(response), 0)
+  send(client_fd, response, strlen(response), 0);
   
   
   std::cout << "Client connected\n";
