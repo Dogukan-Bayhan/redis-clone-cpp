@@ -169,7 +169,7 @@ int main(int argc, char **argv) {
           } else {
             std::vector<std::string> words = parser(buffer);
             if(words[0] == "ECHO") {
-              std::string value = words[1];
+              std::string value = "$\r\n" + words[1] + "\r\n";
               write(fd, value.c_str(), value.size());
             }
           }
