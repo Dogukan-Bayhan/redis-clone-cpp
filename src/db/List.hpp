@@ -1,5 +1,6 @@
 #include <deque>
 #include <string>
+#include <vector>
 
 class List {
 private:
@@ -7,4 +8,5 @@ private:
 public:
     int PushBack(std::string element);
     int PushFront(std::string element);
+    std::vector<std::string> GetElementsInRange(int start, int end);
 };

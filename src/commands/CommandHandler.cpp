@@ -11,6 +11,7 @@ CommandHandler::CommandHandler(KeyValueStore& kv) : db(kv) {
         {"SET",  &CommandHandler::handleSET},
         {"GET",  &CommandHandler::handleGET},
         {"RPUSH",  &CommandHandler::handleRPUSH},
+        {"LRANGE", &CommandHandler::handleLRANGE}
     };
 }
 
@@ -43,6 +44,22 @@ std::string CommandHandler::respInteger(long long n) {
 
 std::string CommandHandler::nullBulk() {
     return "$-1\r\n";
+}
+
+std::string CommandHandler::respBulk(const std::string& value) {
+    return "$" + std::to_string(value.size()) + "\r\n" + value + "\r\n";
+}
+
+std::string CommandHandler::respArray(const std::vector<std::string>& values) {
+    std::string out;
+
+    out += "*" + std::to_string(values.size()) + "\r\n";
+
+    for (const auto& v : values) {
+        out += respBulk(v);
+    }
+
+    return out;
 }
 
 // ----------------------------------------------------
@@ -126,3 +143,22 @@ std::string CommandHandler::handleRPUSH(const std::vector<std::string_view>& arg
     }
     return respInteger(newSize);
 }
+
+std::string CommandHandler::handleLRANGE(const std::vector<std::string_view>& args) {
+    if (args.size() != 4)
+        return "-ERR wrong number of arguments for 'LRANGE'\r\n";
+
+    std::string list_name = std::string(args[1]);
+    auto it = lists.find(list_name);
+    if (it == lists.end()) {
+        return respArray({});
+    }
+
+    int start = std::stoi(std::string(args[2]));
+    int end = std::stoi(std::string(args[3]));
+
+    std::vector<std::string> elements = it->second.GetElementsInRange(start,end);
+    
+    return respArray(elements);
+}
+
