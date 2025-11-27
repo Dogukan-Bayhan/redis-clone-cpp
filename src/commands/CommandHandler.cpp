@@ -190,7 +190,7 @@ std::string CommandHandler::handleLLEN(const std::vector<std::string_view>& args
     std::string list_name = std::string(args[1]);
     auto it = lists.find(list_name);
     if (it == lists.end()) {
-        return respArray({});
+        return respInteger(0);
     }
 
     int list_len = it->second.Len();
