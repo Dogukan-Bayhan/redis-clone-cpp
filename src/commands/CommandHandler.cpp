@@ -144,6 +144,25 @@ std::string CommandHandler::handleRPUSH(const std::vector<std::string_view>& arg
     return respInteger(newSize);
 }
 
+std::string CommandHandler::handleLPUSH(const std::vector<std::string_view>& args) {
+    if (args.size() < 3)
+        return "-ERR wrong number of arguments for 'LPUSH'\r\n";
+
+    int args_size = args.size();
+    int newSize;
+
+    std::string list_name = std::string(args[1]);
+
+
+    for(int i = 2; i < args.size(); i++) {
+        std::string value = std::string(args[i]);
+
+        auto& list = lists[list_name];
+        newSize = list.PushFront(value);
+    }
+    return respInteger(newSize);
+}
+
 std::string CommandHandler::handleLRANGE(const std::vector<std::string_view>& args) {
     if (args.size() != 4)
         return "-ERR wrong number of arguments for 'LRANGE'\r\n";
