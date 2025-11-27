@@ -14,6 +14,7 @@ CommandHandler::CommandHandler(KeyValueStore& kv) : db(kv) {
         {"LPUSH", &CommandHandler::handleLPUSH},
         {"LRANGE", &CommandHandler::handleLRANGE},
         {"LLEN", &CommandHandler::handleLLEN},
+        {"LPOP", &CommandHandler::handleLPOP},
     };
 }
 
@@ -189,10 +190,25 @@ std::string CommandHandler::handleLLEN(const std::vector<std::string_view>& args
 
     std::string list_name = std::string(args[1]);
     auto it = lists.find(list_name);
-    if (it == lists.end()) {
+    if (it == lists.end())
         return respInteger(0);
-    }
 
     int list_len = it->second.Len();
     return respInteger(list_len);
+}
+
+std::string CommandHandler::handleLPOP(const std::vector<std::string_view>& args) {
+    if (args.size() != 2) 
+        return "-ERR wrong number of arguments for 'LPOP'\r\n";
+
+    std::string list_name = std::string(args[1]);
+    auto it = lists.find(list_name);
+    if (it == lists.end())
+        return nullBulk();
+
+    std::string removed_element = it->second.POPFront();
+    if(removed_element.size() == 0) 
+        return nullBulk();
+
+    return valueReturnResp(removed_element);
 }

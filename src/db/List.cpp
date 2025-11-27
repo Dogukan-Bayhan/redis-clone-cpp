@@ -14,6 +14,23 @@ int List::PushBack(std::string element) {
     return list.size();
 }
 
+std::string List::POPFront() {
+    if (list.empty())
+        return "";             
+    std::string value = list.front();
+    list.pop_front();
+    return value;
+}
+
+std::string List::POPBack() {
+    if (list.empty())
+        return "";
+
+    std::string value = list.back();
+    list.pop_back();
+    return value;
+}
+
 std::vector<std::string> List::GetElementsInRange(int start, int end) {
     int len = list.size();
     if (len == 0) return {};
@@ -39,4 +56,3 @@ std::vector<std::string> List::GetElementsInRange(int start, int end) {
 
     return result;
 }
-
