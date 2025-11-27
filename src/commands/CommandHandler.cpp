@@ -1,66 +1,121 @@
 #include "CommandHandler.hpp"
 
 
-std::string CommandHandler::valueReturnResp(const std::string& value) {
-    int size = value.size();
-    std::string reply;
-    reply.reserve(size + 32);
-    reply += "$";
+// ----------------------------------------------------
+// Constructor: build command dispatch table
+// ----------------------------------------------------
+CommandHandler::CommandHandler(KeyValueStore& kv) : db(kv) {
+    commandMap = {
+        {"PING", &CommandHandler::handlePING},
+        {"ECHO", &CommandHandler::handleECHO},
+        {"SET",  &CommandHandler::handleSET},
+        {"GET",  &CommandHandler::handleGET},
+        {"RPUSH",  &CommandHandler::handleRPUSH},
+    };
+}
 
-    reply += std::to_string(size);
+// ----------------------------------------------------
+// RESP Encoders
+// ----------------------------------------------------
+std::string CommandHandler::valueReturnResp(const std::string& value) {
+    size_t size = value.size();
+    std::string len = std::to_string(size);
+
+    std::string reply;
+    reply.reserve(1 + len.size() + 2 + size + 2);
+
+    reply += '$';
+    reply += len;
     reply += "\r\n";
-    
     reply += value;
     reply += "\r\n";
 
     return reply;
 }
 
+std::string CommandHandler::simpleString(const std::string& s) {
+    return "+" + s + "\r\n";
+}
+
+std::string CommandHandler::respInteger(long long n) {
+    return ":" + std::to_string(n) + "\r\n";
+}
+
+std::string CommandHandler::nullBulk() {
+    return "$-1\r\n";
+}
+
+// ----------------------------------------------------
+// Main Command Dispatcher 
+// ----------------------------------------------------
 std::string CommandHandler::execute(const std::vector<std::string_view>& args) {
+    if (args.empty()) 
+        return "-ERR empty command\r\n";
 
-    if (args.size() == 1 && args[0] == "PING") {
-        return std::string(CommandHandler::PONG);
+    std::string cmd(args[0]);
+    for (char& c : cmd) c = std::toupper(c);
+
+    auto it = commandMap.find(cmd);
+    if (it == commandMap.end())
+        return "-ERR unknown command\r\n";
+    
+    return (this->*(it->second))(args);
+}
+
+// ----------------------------------------------------
+// Handlers
+// ----------------------------------------------------
+std::string CommandHandler::handlePING(const std::vector<std::string_view>& args) {
+    return simpleString("PONG");
+}
+
+
+std::string CommandHandler::handleECHO(const std::vector<std::string_view>& args) {
+    if (args.size() != 2)
+        return "-ERR wrong number of arguments for 'ECHO'\r\n";
+
+    return valueReturnResp(std::string(args[1]));
+}
+
+
+std::string CommandHandler::handleSET(const std::vector<std::string_view>& args) {
+    if (args.size() == 3) {
+        db.set(std::string(args[1]), std::string(args[2]));
+        return simpleString("OK");
     }
 
-    if (args.size() == 2 && args[0] == "ECHO") {
-        std::string_view msg = args[1];
-
-        std::string reply;
-        reply.reserve(msg.size() + 32);
-        reply += "$";
-        reply += std::to_string(msg.size());
-        reply += "\r\n";
-        reply.append(msg);
-        reply += "\r\n";
-
-        return reply;
+    // SET key value PX ttl
+    if (args.size() == 5 && args[3] == "PX") {
+        uint64_t ttl = std::stoull(std::string(args[4]));
+        db.set(std::string(args[1]), std::string(args[2]), ttl);
+        return simpleString("OK");
     }
 
-    if (args.size() == 3 && args[0] == "SET") {
-        std::string key(args[1]);
-        std::string value(args[2]);
-        db.set(key, value);
-        return std::string(CommandHandler::OK);
-    }
+    return "-ERR syntax error\r\n";
+}
 
-    if (args.size() == 5 && args[0] == "SET") {
-    std::string key = std::string(args[1]);
+
+std::string CommandHandler::handleGET(const std::vector<std::string_view>& args) {
+    if (args.size() != 2)
+        return "-ERR wrong number of arguments for 'GET'\r\n";
+
+    std::string value;
+    bool found = db.get(std::string(args[1]), value);
+
+    if (!found)
+        return nullBulk();
+
+    return valueReturnResp(value);
+}
+
+std::string CommandHandler::handleRPUSH(const std::vector<std::string_view>& args) {
+    if (args.size() != 3)
+        return "-ERR wrong number of arguments for 'RPUSH'\r\n";
+
+    std::string list_name = std::string(args[1]);
     std::string value = std::string(args[2]);
 
-        if (args[3] == "PX") {
-            uint64_t ttl = std::stoull(std::string(args[4]));
-            db.set(key, value, ttl);
-            return std::string(OK);
-        }
-    }
-
-    if (args.size() == 2 && args[0] == "GET") {
-        std::string key(args[1]);
-        std::string value;
-        bool is_find = db.get(key, value);
-        if(!is_find) return std::string(CommandHandler::NULL_BULK);
-        return valueReturnResp(value);
-    }
-
-    return "-ERR unknown command\r\n";
+    auto& list = lists[list_name];
+    int newSize = list.PushBack(value);
+    return respInteger(newSize);
 }
