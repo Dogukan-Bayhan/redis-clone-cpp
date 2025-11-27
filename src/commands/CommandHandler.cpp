@@ -206,7 +206,7 @@ std::string CommandHandler::handleLPOP(const std::vector<std::string_view>& args
     if (it == lists.end())
         return nullBulk();
     
-    if (args.size() = 2) {
+    if (args.size() == 2) {
         std::string removed_element = it->second.POPFront();
         if(removed_element.size() == 0) 
             return nullBulk();
