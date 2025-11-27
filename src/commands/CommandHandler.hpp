@@ -8,7 +8,7 @@
 class CommandHandler
 {
 public:
-    CommandHandler(KeyValueStore& kv) : db(kv){}
+    CommandHandler(KeyValueStore& kv);
     std::string execute(const std::vector<std::string_view> &args);
 private:
     KeyValueStore& db;
