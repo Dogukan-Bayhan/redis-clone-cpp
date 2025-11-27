@@ -11,7 +11,7 @@ CommandHandler::CommandHandler(KeyValueStore& kv) : db(kv) {
         {"SET",  &CommandHandler::handleSET},
         {"GET",  &CommandHandler::handleGET},
         {"RPUSH",  &CommandHandler::handleRPUSH},
-        {"LPUSH",  &CommandHandler::handleRPUSH},
+        {"LPUSH",  &CommandHandler::handleLPUSH},
         {"LRANGE", &CommandHandler::handleLRANGE}
     };
 }
