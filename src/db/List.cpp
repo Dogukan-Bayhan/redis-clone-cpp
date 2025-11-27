@@ -12,8 +12,13 @@ int List::PushBack(std::string element) {
 
 std::vector<std::string> List::GetElementsInRange(int start, int end) {
     int len = list.size();
-
     if (len == 0) return {};
+
+    if (start < 0) start = len + start;
+    if (end < 0) end = len + end;
+    
+    if (start < 0) start = 0;
+    if (end < 0) end = 0;
 
     if (start >= len) return {};
 
