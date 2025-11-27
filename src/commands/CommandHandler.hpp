@@ -23,8 +23,6 @@ private:
     std::string respInteger(const long long n);
     std::string nullBulk();
     std::string respBulk(const std::string& value);
-    std::string respInteger(long long v);
-    std::string respBulk(const std::string& value);
     std::string respArray(const std::vector<std::string>& values);
     
 
