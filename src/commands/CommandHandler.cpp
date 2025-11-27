@@ -198,17 +198,32 @@ std::string CommandHandler::handleLLEN(const std::vector<std::string_view>& args
 }
 
 std::string CommandHandler::handleLPOP(const std::vector<std::string_view>& args) {
-    if (args.size() != 2) 
+    if (args.size() < 2) 
         return "-ERR wrong number of arguments for 'LPOP'\r\n";
 
     std::string list_name = std::string(args[1]);
     auto it = lists.find(list_name);
     if (it == lists.end())
         return nullBulk();
+    
+    if (args.size() > 2) {
+        std::string removed_element = it->second.POPFront();
+        if(removed_element.size() == 0) 
+            return nullBulk();
 
-    std::string removed_element = it->second.POPFront();
-    if(removed_element.size() == 0) 
-        return nullBulk();
+        return valueReturnResp(removed_element);
+    }   
 
-    return valueReturnResp(removed_element);
+    int pop_size = std::stoi(std::string(args[2]));
+    std::vector<std::string> removed_elements;
+
+    for (int i = 0; i < pop_size; i++) {
+        std::string removed_element = it->second.POPFront();
+        if(removed_element.size() == 0) 
+            break;
+
+        removed_elements.push_back(removed_element);
+    }
+
+    return respArray(removed_elements);
 }
