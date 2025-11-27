@@ -33,4 +33,6 @@ private:
     std::string handleRPUSH (const std::vector<std::string_view>& args);
     std::string handleLPUSH (const std::vector<std::string_view>& args);
     std::string handleLRANGE (const std::vector<std::string_view>& args);
+    std::string handleLLEN (const std::vector<std::string_view>& args);
+
 };

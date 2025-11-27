@@ -8,11 +8,12 @@ CommandHandler::CommandHandler(KeyValueStore& kv) : db(kv) {
     commandMap = {
         {"PING", &CommandHandler::handlePING},
         {"ECHO", &CommandHandler::handleECHO},
-        {"SET",  &CommandHandler::handleSET},
-        {"GET",  &CommandHandler::handleGET},
-        {"RPUSH",  &CommandHandler::handleRPUSH},
-        {"LPUSH",  &CommandHandler::handleLPUSH},
-        {"LRANGE", &CommandHandler::handleLRANGE}
+        {"SET", &CommandHandler::handleSET},
+        {"GET", &CommandHandler::handleGET},
+        {"RPUSH", &CommandHandler::handleRPUSH},
+        {"LPUSH", &CommandHandler::handleLPUSH},
+        {"LRANGE", &CommandHandler::handleLRANGE},
+        {"LLEN", &CommandHandler::handleLLEN},
     };
 }
 
@@ -182,3 +183,16 @@ std::string CommandHandler::handleLRANGE(const std::vector<std::string_view>& ar
     return respArray(elements);
 }
 
+std::string CommandHandler::handleLLEN(const std::vector<std::string_view>& args) {
+    if (args.size() != 2) 
+        return "-ERR wrong number of arguments for 'LLEN'\r\n";
+
+    std::string list_name = std::string(args[1]);
+    auto it = lists.find(list_name);
+    if (it == lists.end()) {
+        return respArray({});
+    }
+
+    int list_len = it->second.Len();
+    return respInteger(list_len);
+}

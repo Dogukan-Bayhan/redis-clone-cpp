@@ -1,5 +1,9 @@
 #include "List.hpp"
 
+int List::Len() {
+    return list.size();
+}
+
 int List::PushFront(std::string element) {
     list.push_front(element);
     return list.size();
