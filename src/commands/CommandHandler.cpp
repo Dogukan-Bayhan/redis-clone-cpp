@@ -109,13 +109,20 @@ std::string CommandHandler::handleGET(const std::vector<std::string_view>& args)
 }
 
 std::string CommandHandler::handleRPUSH(const std::vector<std::string_view>& args) {
-    if (args.size() != 3)
+    if (args.size() < 3)
         return "-ERR wrong number of arguments for 'RPUSH'\r\n";
 
-    std::string list_name = std::string(args[1]);
-    std::string value = std::string(args[2]);
+    int args_size = args.size();
+    int newSize;
 
-    auto& list = lists[list_name];
-    int newSize = list.PushBack(value);
+    std::string list_name = std::string(args[1]);
+
+
+    for(int i = 2; i < args.size(); i++) {
+        std::string value = std::string(args[i]);
+
+        auto& list = lists[list_name];
+        newSize = list.PushBack(value);
+    }
     return respInteger(newSize);
 }
