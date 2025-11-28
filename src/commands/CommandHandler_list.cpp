@@ -276,11 +276,10 @@ void CommandHandler::maybeWakeBlockedClients(const std::string& list_name) {
 
         // RESP array: [list_name, value]
         std::vector<std::string> resp = { list_name, value };
-        std::string payload = "*-1\r\n";
+        std::string payload = respArray(resp);
 
         ::write(blocked_fd, payload.c_str(), payload.size());
     }
-
 
     // If no clients remain waiting, remove entry from map
     if (waiters.empty()) {
@@ -301,7 +300,7 @@ void CommandHandler::checkTimeouts() {
             if(bc.deadline_ms == 0 || bc.deadline_ms > now)
                 break;
 
-            std::string payload = respArray({});
+            std::string payload = "*-1\r\n";
             ::write(bc.fd, payload.c_str(), payload.size());
 
             queue.pop_front();
