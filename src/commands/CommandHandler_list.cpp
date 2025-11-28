@@ -276,7 +276,7 @@ void CommandHandler::maybeWakeBlockedClients(const std::string& list_name) {
 
         // RESP array: [list_name, value]
         std::vector<std::string> resp = { list_name, value };
-        std::string payload = respArray(resp);
+        std::string payload = "*-1\r\n";
 
         ::write(blocked_fd, payload.c_str(), payload.size());
     }
