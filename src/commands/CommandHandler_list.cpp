@@ -230,15 +230,13 @@ ExecResult CommandHandler::handleBLPOP(const std::vector<std::string_view>& args
     uint64_t deadline = 0;
 
     if (timeout_sec > 0) 
-        deadline = current_time_ms() + timeout_sec * 1000;
+        deadline = current_time_ms() + (uint64_t)(timeout_sec * 1000);
     // Otherwise, register client as blocked
-    blockedClients[list_name].push_back({
-        .fd = client_fd,
-        .deadline_ms = deadline
-    });
+    blockedClients[list_name].push_back({ client_fd, deadline });
+
 
     // No response yet — EventLoop must not send anything
-    return ExecResult("", false, client_fd);
+    return ExecResult("", true, client_fd);
 }
 
 /**
