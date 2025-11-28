@@ -134,7 +134,7 @@ ExecResult CommandHandler::handleTYPE(const std::vector<std::string_view>& args)
     std::string key = std::string(args[1]);
     std::string value;
     bool is_any_value = db.get(key, value);
-    if (is_any_value) 
+    if (!is_any_value) 
             return ExecResult(simpleString("none"),
                           false, client_fd);
     
