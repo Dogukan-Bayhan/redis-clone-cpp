@@ -33,6 +33,7 @@ CommandHandler::CommandHandler(KeyValueStore& kv)
         {"LLEN",  &CommandHandler::handleLLEN},
         {"LPOP",  &CommandHandler::handleLPOP},
         {"BLPOP", &CommandHandler::handleBLPOP},
+        {"TYPE", &CommandHandler::handleTYPE},
     };
 }
 

@@ -104,6 +104,7 @@ private:
     ExecResult handleECHO(const std::vector<std::string_view>& args);
     ExecResult handleSET (const std::vector<std::string_view>& args);
     ExecResult handleGET (const std::vector<std::string_view>& args);
+    ExecResult handleTYPE(const std::vector<std::string_view>& args);
     
     // --------------------------------------------------------------------
     // List Handlers (Redis-style list operations)

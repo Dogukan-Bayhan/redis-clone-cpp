@@ -125,3 +125,19 @@ ExecResult CommandHandler::handleGET(const std::vector<std::string_view>& args) 
     // Return value as a RESP bulk string
     return ExecResult(valueReturnResp(value), false, client_fd);
 }
+
+ExecResult CommandHandler::handleTYPE(const std::vector<std::string_view>& args) {
+    if (args.size() != 2)
+        return ExecResult("-ERR wrong number of arguments for 'TYPE'\r\n",
+                          false, client_fd);
+
+    std::string key = std::string(args[1]);
+    std::string value;
+    bool is_any_value = db.get(key, value);
+    if (is_any_value) 
+            return ExecResult(simpleString("none"),
+                          false, client_fd);
+    
+                    
+    return ExecResult(simpleString("string"), false, client_fd);
+}
