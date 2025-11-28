@@ -226,11 +226,11 @@ ExecResult CommandHandler::handleBLPOP(const std::vector<std::string_view>& args
         return ExecResult(respArray(resp), false, client_fd);
     }
 
-    long timeout;  
+    double timeout_sec = std::stod(std::string(args[2]));
     uint64_t deadline = 0;
 
-    if (timeout > 0) 
-        deadline = current_time_ms() + timeout * 1000;
+    if (timeout_sec > 0) 
+        deadline = current_time_ms() + timeout_sec * 1000;
     // Otherwise, register client as blocked
     blockedClients[list_name].push_back({
         .fd = client_fd,
