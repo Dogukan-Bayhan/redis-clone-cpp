@@ -19,10 +19,14 @@ void EventLoop::run() {
     int max_fd = server_fd;
     char buffer[4096];
 
+    struct timeval tv;
+    tv.tv_sec = 0;
+    tv.tv_usec = 50000;
+
     while (true) {
         fd_set ready_fds = current_fds;
 
-        int activity = select(max_fd + 1, &ready_fds, nullptr, nullptr, nullptr);
+        int activity = select(max_fd + 1, &ready_fds, nullptr, nullptr, &tv);
         if (activity < 0) {
             std::cerr << "select error\n";
             break;
@@ -66,5 +70,7 @@ void EventLoop::run() {
                 ::write(fd, result.reply.c_str(), result.reply.size());
             }
         }
+
+        handler.checkTimeouts();
     }
 }

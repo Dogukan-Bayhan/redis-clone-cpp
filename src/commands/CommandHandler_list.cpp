@@ -1,7 +1,7 @@
 #include "CommandHandler.hpp"
 
 #include <unistd.h>
-
+#include "../utils/time.cpp"
 
 /**
  * ----------------------------------------------------
@@ -226,8 +226,16 @@ ExecResult CommandHandler::handleBLPOP(const std::vector<std::string_view>& args
         return ExecResult(respArray(resp), false, client_fd);
     }
 
+    long timeout;  
+    uint64_t deadline = 0;
+
+    if (timeout > 0) 
+        deadline = current_time_ms() + timeout * 1000;
     // Otherwise, register client as blocked
-    blockedClients[list_name].push_back(client_fd);
+    blockedClients[list_name].push_back({
+        .fd = client_fd,
+        .deadline_ms = deadline
+    });
 
     // No response yet — EventLoop must not send anything
     return ExecResult("", false, client_fd);
@@ -263,7 +271,7 @@ void CommandHandler::maybeWakeBlockedClients(const std::string& list_name) {
 
     // Serve blocked clients in FIFO order
     while (!waiters.empty() && !list.Empty()) {
-        int blocked_fd = waiters.front();
+        int blocked_fd = waiters.front().fd;
         waiters.pop_front();
 
         std::string value = list.POPFront();
@@ -278,5 +286,38 @@ void CommandHandler::maybeWakeBlockedClients(const std::string& list_name) {
     // If no clients remain waiting, remove entry from map
     if (waiters.empty()) {
         blockedClients.erase(blk_it);
+    }
+}
+
+void CommandHandler::checkTimeouts() {
+    uint64_t now = current_time_ms();
+
+    for (auto &pair : blockedClients) {
+        const std::string &list_name = pair.first;
+        auto &queue = pair.second;
+
+        while(!queue.empty()) {
+            auto &bc = queue.front();
+
+            if(bc.deadline_ms == 0 || bc.deadline_ms > now)
+                break;
+
+            std::string payload = respArray({});
+            ::write(bc.fd, payload.c_str(), payload.size());
+
+            queue.pop_front();
+        }
+    }
+
+    cleanup_empty_lists();
+}
+
+void CommandHandler::cleanup_empty_lists() {
+    for (auto it = blockedClients.begin(); it != blockedClients.end(); ) {
+        if (it->second.empty()) {
+            it = blockedClients.erase(it);  
+        } else {
+            ++it;
+        }
     }
 }

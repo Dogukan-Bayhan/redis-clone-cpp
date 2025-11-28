@@ -9,6 +9,7 @@
 #include "../db/KeyValueStore.hpp"
 #include "../db/List.hpp"
 #include "../types/ExecResult.hpp"
+#include "../types/BlokedClient.hpp"
 
 /**
  * CommandHandler
@@ -34,6 +35,11 @@ public:
      * @return          Response payload + metadata.
     */
     ExecResult execute(const std::vector<std::string_view>& args, int client_fd);
+
+    /**
+     * Responses are returned to clients who have previously made a request but whose time has passed.
+     */
+    void checkTimeouts();
 
 private:
     // File descriptor of the currently executing client.
@@ -67,7 +73,7 @@ private:
      * The order in the deque ensures FIFO wake-up semantics
      * (first client to block is the first to be served).
     */    
-    std::unordered_map<std::string, std::deque<int>> blockedClients;
+    std::unordered_map<std::string, std::deque<BlockedClient>> blockedClients;
 
     // --------------------------------------------------------------------
     // RESP Encoding Helpers
@@ -126,4 +132,6 @@ private:
      * @param list_name Name of the list for which new elements were inserted.
      */
     void maybeWakeBlockedClients(const std::string& list_name);
+
+    void cleanup_empty_lists();
 };
