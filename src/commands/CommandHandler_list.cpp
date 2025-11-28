@@ -281,6 +281,7 @@ void CommandHandler::maybeWakeBlockedClients(const std::string& list_name) {
         ::write(blocked_fd, payload.c_str(), payload.size());
     }
 
+
     // If no clients remain waiting, remove entry from map
     if (waiters.empty()) {
         blockedClients.erase(blk_it);
