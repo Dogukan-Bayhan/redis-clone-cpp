@@ -1,13 +1,16 @@
 #include "EventLoop.hpp"
 #include "../protocol/RESPParser.hpp"
-#include "../commands/CommandHandler.hpp"
 
 #include <unistd.h>
+#include <arpa/inet.h>
 #include <iostream>
 #include <string>
-#include <arpa/inet.h>
 
-EventLoop::EventLoop(int serverFd) : server_fd(serverFd), db(), handler(db){
+EventLoop::EventLoop(int serverFd)
+    : server_fd(serverFd),
+      db(),
+      handler(db)
+{
     FD_ZERO(&current_fds);
     FD_SET(server_fd, &current_fds);
 }
@@ -19,23 +22,27 @@ void EventLoop::run() {
     while (true) {
         fd_set ready_fds = current_fds;
 
-        int activity = select(max_fd + 1, &ready_fds, NULL, NULL, NULL);
+        int activity = select(max_fd + 1, &ready_fds, nullptr, nullptr, nullptr);
         if (activity < 0) {
             std::cerr << "select error\n";
             break;
         }
 
+        // Yeni bağlantıları al
         if (FD_ISSET(server_fd, &ready_fds)) {
             sockaddr_in client_addr{};
             socklen_t len = sizeof(client_addr);
             int fd = accept(server_fd, (sockaddr*)&client_addr, &len);
-
-            FD_SET(fd, &current_fds);
-            if (fd > max_fd) max_fd = fd;
+            if (fd < 0) {
+                std::cerr << "accept error\n";
+            } else {
+                FD_SET(fd, &current_fds);
+                if (fd > max_fd) max_fd = fd;
+            }
         }
 
-        for (int fd = 0; fd <= max_fd; fd++) {
-
+        // Var olan client'ları işle
+        for (int fd = 0; fd <= max_fd; ++fd) {
             if (fd == server_fd) continue;
             if (!FD_ISSET(fd, &ready_fds)) continue;
 
@@ -49,10 +56,15 @@ void EventLoop::run() {
             std::string request(buffer, bytes);
 
             auto args = RESPParser::parse(request);
-            if (args.empty()) continue;
+            if (args.empty())
+                continue;
 
-            std::string reply = handler.execute(args);
-            write(fd, reply.c_str(), reply.size());
+            ExecResult result = handler.execute(args, fd);
+
+            // BLPOP blokladığında reply boş olacak → hiçbir şey yazma
+            if (!result.reply.empty()) {
+                ::write(fd, result.reply.c_str(), result.reply.size());
+            }
         }
     }
 }

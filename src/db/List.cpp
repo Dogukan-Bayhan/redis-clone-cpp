@@ -1,5 +1,9 @@
 #include "List.hpp"
 
+bool List::Empty() {
+    return list.empty();
+}
+
 int List::Len() {
     return list.size();
 }

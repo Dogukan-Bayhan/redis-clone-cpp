@@ -6,6 +6,7 @@ class List {
 private:
     std::deque<std::string> list;
 public:
+    bool Empty();
     int PushBack(std::string element);
     int PushFront(std::string element);
     std::string POPBack();
