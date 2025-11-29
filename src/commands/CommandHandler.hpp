@@ -106,6 +106,11 @@ private:
     ExecResult handleLLEN (const std::vector<std::string_view>& args);
     ExecResult handleLPOP (const std::vector<std::string_view>& args);
     
+    // --------------------------------------------------------------------
+    // Stream Handlers (Redis-style stream operations)
+    // --------------------------------------------------------------------
+    ExecResult handleXADD (const std::vector<std::string_view>& args);
+
     /**
      * Blocking pop operation (BLPOP).
      *
