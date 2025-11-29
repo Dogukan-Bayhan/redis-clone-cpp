@@ -18,9 +18,9 @@
  * All commands are normalized to uppercase before lookup,
  * ensuring case-insensitivity (e.g. "PING", "ping", "PiNg").
 */
-CommandHandler::CommandHandler(KeyValueStore& kv)
+CommandHandler::CommandHandler(RedisStore& str)
     : client_fd(-1),
-      db(kv)
+      store(str)
 {
     commandMap = {
         {"PING",  &CommandHandler::handlePING},
