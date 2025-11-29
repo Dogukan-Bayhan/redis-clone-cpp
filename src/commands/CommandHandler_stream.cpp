@@ -2,7 +2,7 @@
 
 
 ExecResult CommandHandler::handleXADD(const std::vector<std::string_view>& args) {
-    if (args.size() < 7) 
+    if (args.size() < 5) 
         return ExecResult("-ERR wrong number of arguments for 'XADD'\r\n",
                           false, client_fd);
 
