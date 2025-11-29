@@ -168,7 +168,7 @@ bool Stream::addSequenceToId(std::string& id, std::string& err) {
 
 
 bool Stream::createUniqueId(std::string& id, std::string err) {
-    long long now_ms = static_cast<long long>(current_time_ms());
+    long long now_ms = getUnixTimeMs();
 
 
     if (entries.empty()) {
