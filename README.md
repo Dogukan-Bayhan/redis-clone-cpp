@@ -1,33 +1,85 @@
-[![progress-banner](https://backend.codecrafters.io/progress/redis/4d16737b-4ba6-463d-bc67-6b76b2016891)](https://app.codecrafters.io/users/codecrafters-bot?r=2qF)
+Mini Redis Clone in C++
 
-This is a starting point for C++ solutions to the
-["Build Your Own Redis" Challenge](https://codecrafters.io/challenges/redis).
+A lightweight, educational Redis clone implemented from scratch in modern C++.
+The goal of this project is to deeply understand how Redis works internally — from sockets to event loops, from RESP encoding to data structures, from blocking operations to stream mechanics.
 
-In this challenge, you'll build a toy Redis clone that's capable of handling
-basic commands like `PING`, `SET` and `GET`. Along the way we'll learn about
-event loops, the Redis protocol and more.
+This implementation follows a modular, extensible architecture and currently supports a growing subset of real Redis behavior.
 
-**Note**: If you're viewing this repo on GitHub, head over to
-[codecrafters.io](https://codecrafters.io) to try the challenge.
+Features Implemented So Far
+RESP Protocol Support
 
-# Passing the first stage
+Full parsing of RESP Arrays (*), Bulk Strings ($), Simple Strings (+), Integers (:), and Errors (-)
 
-The entry point for your Redis implementation is in `src/main.cpp`. Study and
-uncomment the relevant code, and push your changes to pass the first stage:
+Clean separation between parsing, dispatching, and execution
 
-```sh
-git commit -am "pass 1st stage" # any msg
-git push origin master
-```
+Custom bulk string encoder (respBulk) and optimized version (valueReturnResp)
 
-That's all!
+Protocol-correct responses for all implemented commands
 
-# Stage 2 & beyond
+Key-Value Command Support
 
-Note: This section is for stages 2 and beyond.
+PING → +PONG
 
-1. Ensure you have `cmake` installed locally
-1. Run `./your_program.sh` to run your Redis server, which is implemented in
-   `src/main.cpp`.
-1. Commit your changes and run `git push origin master` to submit your solution
-   to CodeCrafters. Test output will be streamed to your terminal.
+ECHO <msg>
+
+SET key value
+
+GET key
+
+Error handling for malformed input, missing arguments, invalid types, etc.
+
+List Operations (Work in Progress)
+
+Internal list representation using std::deque
+
+LPUSH, RPUSH, LLEN, LRANGE basics working
+
+Command handler routes list commands to dedicated handlers
+
+Blocking List Operations (BLPOP)
+
+Initial design + partial implementation:
+
+Tracking blocked clients (BlockedClient structure)
+
+Waking up clients when list becomes non-empty
+
+Timeout handling mechanism prepared (checkTimeout stub)
+
+Architecture is compatible with Redis-style blocking semantics
+
+Stream (XADD / XRANGE) Foundations
+
+You started implementing internal Redis Stream mechanics:
+
+XADD ID parsing logic (parseIdToTwoInteger)
+
+Validation of stream entry IDs (no 0-0, strictly increasing)
+
+Beginning of Stream::addStream() implementation
+
+Handling of the last entry’s timestamp/sequence logic
+
+Stream entry storage structure (StreamEntry)
+
+This creates the foundation for:
+
+XADD auto-ID
+
+XRANGE and XREVRANGE iteration
+
+Consumer groups in the future
+
+Command Dispatching Architecture
+
+A clean, maintainable command handler:
+
+Central CommandHandler::execute() that properly routes commands
+
+All commands return RESP-encoded strings (no raw text)
+
+ExecResult abstraction keeps response + metadata together
+
+Non-blocking and blocking clients share a unified interface
+
+RedisStore used as central data store (strings, lists, streams, etc.)
