@@ -11,9 +11,27 @@ ExecResult CommandHandler::handleXADD(const std::vector<std::string_view>& args)
 
     std::string id = std::string(args[2]);
 
+    StreamIdType streamType = stream.returnStreamType(id);
+
+
+    if (streamType == StreamIdType::INVALID) {
+        return ExecResult(
+            "-ERR The ID specified in XADD is equal or smaller than the target stream top item\r\n",
+            false, client_fd
+        );
+    }
+    
     std::string err;
-    if(!stream.validateId(id, err)) {
-        return ExecResult(err, false, client_fd);
+    if (streamType == StreamIdType::AUTO_SEQUENCE){
+        if (!stream.addSequenceToId(id, err)) {
+            return ExecResult(err, false, client_fd);
+        }
+    } else if(streamType == StreamIdType::AUTO_GENERATED) {
+
+    } else {
+        if (!stream.validateId(id, err)) {
+            return ExecResult(err, false, client_fd);
+        }
     }
 
     std::vector<std::pair<std::string, std::string>> fields;

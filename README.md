@@ -83,3 +83,6 @@ ExecResult abstraction keeps response + metadata together
 Non-blocking and blocking clients share a unified interface
 
 RedisStore used as central data store (strings, lists, streams, etc.)
+
+This project is based on the "Build Your Own Redis" challenge by Codecrafters.
+https://codecrafters.io/challenges/redis
