@@ -130,7 +130,7 @@ bool Stream::addSequenceToId(std::string& id, std::string& err) {
 
     // --- STREAM EMPTY CASE ---
     if (entries.empty()) {
-        id = ms_str + "-1";  // first seq always 0
+        id = ms_str + "-1";
         return true;
     }
 
@@ -166,6 +166,41 @@ bool Stream::addSequenceToId(std::string& id, std::string& err) {
     return true;
 }
 
+
+bool Stream::createUniqueId(std::string& id, std::string err) {
+    long long now_ms = static_cast<long long>(current_time_ms());
+
+
+    if (entries.empty()) {
+        id = std::to_string(now_ms) + "-0";
+        return true;
+    }
+
+    StreamEntry& last = entries.back();
+
+    long long last_ms, last_seq;
+
+    if (!parseIdToTwoInteger(last.id, last_ms, last_seq)) {
+        err = "-ERR The ID specified in XADD is equal or smaller than the target stream top item\r\n";
+        return false;
+    }
+
+    long long new_ms, new_seq;
+
+    if (now_ms > last_ms) {
+        new_ms = now_ms;
+        new_seq = 0;
+    } else if (now_ms == last_ms) {
+        new_ms = last_ms;
+        new_seq = last_seq + 1;
+    } else {
+        new_ms = last_ms;
+        new_seq = last_seq + 1;
+    }
+
+    id = std::to_string(new_ms) + "-" + std::to_string(new_seq);
+    return true;
+}
 
 
 

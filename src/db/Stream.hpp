@@ -4,6 +4,8 @@
 #include <vector>
 #include <unordered_map>
 
+#include "../utils/time.cpp"
+
 enum class StreamIdType {
     EXPLICIT,
     AUTO_SEQUENCE,
@@ -29,4 +31,5 @@ public:
     std::string addStream(const std::string& id,const std::vector<std::pair<std::string,std::string>>& fields);    
     const StreamEntry* getById(const std::string& id);
     bool addSequenceToId(std::string& id, std::string& err);
+    bool createUniqueId(std::string& id, std::string err);
 };

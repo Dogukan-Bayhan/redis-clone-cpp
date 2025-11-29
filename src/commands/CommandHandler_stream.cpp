@@ -27,7 +27,9 @@ ExecResult CommandHandler::handleXADD(const std::vector<std::string_view>& args)
             return ExecResult(err, false, client_fd);
         }
     } else if(streamType == StreamIdType::AUTO_GENERATED) {
-
+        if(!stream.createUniqueId(id, err)) {
+            return ExecResult(err, false, client_fd);
+        }
     } else {
         if (!stream.validateId(id, err)) {
             return ExecResult(err, false, client_fd);
