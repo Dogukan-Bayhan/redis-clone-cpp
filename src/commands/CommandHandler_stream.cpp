@@ -2,9 +2,7 @@
 
 
 ExecResult CommandHandler::handleXADD(const std::vector<std::string_view>& args) {
-    if (args.size() < 5) 
-        return ExecResult("-ERR wrong number of arguments for 'XADD'\r\n",
-                          false, client_fd);
+    
 
     std::string stream_name = std::string(args[1]);
     Stream& stream = store.getOrCreateStream(stream_name);
@@ -13,13 +11,7 @@ ExecResult CommandHandler::handleXADD(const std::vector<std::string_view>& args)
 
     std::vector<std::pair<std::string, std::string>> fields;
 
-    if ((args.size() - 3) < 2) {
-        return ExecResult("-ERR XADD requires field-value pairs\r\n", false, client_fd);
-    }
-
-    if (((args.size() - 3) % 2) != 0) {
-        return ExecResult("-ERR XADD field-value pairs are incomplete\r\n", false, client_fd);
-    }
+    
 
     for (int i = 3; i < args.size(); i += 2) {
         const std::string& field = std::string(args[i]);
