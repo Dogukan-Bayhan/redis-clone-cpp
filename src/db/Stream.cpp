@@ -130,7 +130,7 @@ bool Stream::addSequenceToId(std::string& id, std::string& err) {
 
     // --- STREAM EMPTY CASE ---
     if (entries.empty()) {
-        id = ms_str + "-0";  // first seq always 0
+        id = ms_str + "-1";  // first seq always 0
         return true;
     }
 
