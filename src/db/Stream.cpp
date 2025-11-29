@@ -1,7 +1,7 @@
 #include "./Stream.hpp"
 
 
-bool parseIdToTwoInteger(const std::string& id, long long& ms, long long& seq) {
+bool Stream::parseIdToTwoInteger(const std::string& id, long long& ms, long long& seq) {
     size_t pos = id.find('-');
 
     if (pos == std::string::npos) return false;
