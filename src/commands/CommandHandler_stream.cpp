@@ -35,6 +35,6 @@ ExecResult CommandHandler::handleXADD(const std::vector<std::string_view>& args)
 
     stream.addStream(id, fields);
 
-    return ExecResult(valueReturnResp(id),
+    return ExecResult(respBulk(id),
                           false, client_fd);
 }
