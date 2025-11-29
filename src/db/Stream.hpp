@@ -14,7 +14,10 @@ private:
     std::vector<StreamEntry> entries;
     std::unordered_map<std::string, std::size_t> idToIndex;
 
+
+    bool parseIdToTwoInteger(const std::string&, long long&, long long&);
 public:
+    bool validateId(const std::string& id, std::string& err);
     std::string addStream(const std::string& id,const std::vector<std::pair<std::string,std::string>>& fields);    
     const StreamEntry* getById(const std::string& id);
 };

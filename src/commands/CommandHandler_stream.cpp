@@ -11,6 +11,11 @@ ExecResult CommandHandler::handleXADD(const std::vector<std::string_view>& args)
 
     std::string id = std::string(args[2]);
 
+    std::string err;
+    if(!stream.validateId(id, err)) {
+        return ExecResult(err, false, client_fd);
+    }
+
     std::vector<std::pair<std::string, std::string>> fields;
 
     if ((args.size() - 3) < 2) {
