@@ -69,20 +69,23 @@ ExecResult CommandHandler::handleECHO(const std::vector<std::string_view>& args)
  *   - Anything else results in a syntax error, matching Redis behavior.
  */
 ExecResult CommandHandler::handleSET(const std::vector<std::string_view>& args) {
-    // Basic form: SET key value
     if (args.size() == 3) {
-        db.set(std::string(args[1]), std::string(args[2]));
+        std::string key = std::string(args[1]);
+        std::string val = std::string(args[2]);
+
+        store.setString(key, val);
         return ExecResult(simpleString("OK"), false, client_fd);
     }
 
-    // Extended form: SET key value PX ttl
     if (args.size() == 5 && args[3] == "PX") {
+        std::string key = std::string(args[1]);
+        std::string val = std::string(args[2]);
         uint64_t ttl = std::stoull(std::string(args[4]));
-        db.set(std::string(args[1]), std::string(args[2]), ttl);
+
+        store.setString(key, val, ttl);
         return ExecResult(simpleString("OK"), false, client_fd);
     }
 
-    // Any other argument count or modifier is invalid
     return ExecResult("-ERR syntax error\r\n", false, client_fd);
 }
 
@@ -116,7 +119,7 @@ ExecResult CommandHandler::handleGET(const std::vector<std::string_view>& args) 
                           false, client_fd);
 
     std::string value;
-    bool found = db.get(std::string(args[1]), value);
+    bool found = store.getString(std::string(args[1]), value);
 
     // Key not found → RESP null bulk
     if (!found)
@@ -132,12 +135,19 @@ ExecResult CommandHandler::handleTYPE(const std::vector<std::string_view>& args)
                           false, client_fd);
 
     std::string key = std::string(args[1]);
-    std::string value;
-    bool is_any_value = db.get(key, value);
-    if (!is_any_value) 
-            return ExecResult(simpleString("none"),
-                          false, client_fd);
-    
-                    
-    return ExecResult(simpleString("string"), false, client_fd);
+
+    RedisObj* obj = store.getObject(key);
+    if (!obj)
+        return ExecResult(simpleString("none"), false, client_fd);
+
+    switch (obj->type) {
+        case RedisType::STRING:
+            return ExecResult(simpleString("string"), false, client_fd);
+        case RedisType::LIST:
+            return ExecResult(simpleString("list"), false, client_fd);
+        case RedisType::STREAM:
+            return ExecResult(simpleString("stream"), false, client_fd);
+    }
+
+    return ExecResult(simpleString("none"), false, client_fd);
 }

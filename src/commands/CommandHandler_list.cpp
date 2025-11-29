@@ -26,7 +26,7 @@ ExecResult CommandHandler::handleRPUSH(const std::vector<std::string_view>& args
                           false, client_fd);
 
     std::string list_name = std::string(args[1]);
-    auto& list = lists[list_name];
+    List& list = store.getOrCreateList(list_name);
 
     // Append all provided values to the list's tail
     for (size_t i = 2; i < args.size(); ++i) {
@@ -61,7 +61,7 @@ ExecResult CommandHandler::handleLPUSH(const std::vector<std::string_view>& args
                           false, client_fd);
 
     std::string list_name = std::string(args[1]);
-    auto& list = lists[list_name];
+    List& list = store.getOrCreateList(list_name);
 
     for (size_t i = 2; i < args.size(); ++i) {
         std::string value = std::string(args[i]);
@@ -95,17 +95,20 @@ ExecResult CommandHandler::handleLRANGE(const std::vector<std::string_view>& arg
                           false, client_fd);
 
     std::string list_name = std::string(args[1]);
-    auto it = lists.find(list_name);
+    RedisObj* obj = store.getObject(list_name);
 
     // Non-existing list → return empty array
-    if (it == lists.end()) {
+    if (!obj || obj->type != RedisType::LIST) {
+        // Non-existing or wrong-type key → return empty array
         return ExecResult(respArray({}), false, client_fd);
     }
+
+    List& list = std::get<List>(obj->value);
 
     int start = std::stoi(std::string(args[2]));
     int end   = std::stoi(std::string(args[3]));
 
-    std::vector<std::string> elements = it->second.GetElementsInRange(start, end);
+    std::vector<std::string> elements = list.GetElementsInRange(start, end);
 
     return ExecResult(respArray(elements), false, client_fd);
 }
@@ -128,11 +131,13 @@ ExecResult CommandHandler::handleLLEN(const std::vector<std::string_view>& args)
                           false, client_fd);
 
     std::string list_name = std::string(args[1]);
-    auto it = lists.find(list_name);
-    if (it == lists.end())
+
+    RedisObj* obj = store.getObject(list_name);
+    if (!obj || obj->type != RedisType::LIST)
         return ExecResult(respInteger(0), false, client_fd);
 
-    int list_len = it->second.Len();
+    List& list = std::get<List>(obj->value);
+    int list_len = list.Len();
     return ExecResult(respInteger(list_len), false, client_fd);
 }
 
@@ -158,13 +163,16 @@ ExecResult CommandHandler::handleLPOP(const std::vector<std::string_view>& args)
                           false, client_fd);
 
     std::string list_name = std::string(args[1]);
-    auto it = lists.find(list_name);
-    if (it == lists.end())
+
+    RedisObj* obj = store.getObject(list_name);
+    if (!obj || obj->type != RedisType::LIST)
         return ExecResult(nullBulk(), false, client_fd);
+
+    List& list = std::get<List>(obj->value);
 
     // LPOP key
     if (args.size() == 2) {
-        std::string removed_element = it->second.POPFront();
+        std::string removed_element = list.POPFront();
         if (removed_element.empty())
             return ExecResult(nullBulk(), false, client_fd);
 
@@ -176,7 +184,7 @@ ExecResult CommandHandler::handleLPOP(const std::vector<std::string_view>& args)
     std::vector<std::string> removed_elements;
 
     for (int i = 0; i < pop_size; ++i) {
-        std::string removed_element = it->second.POPFront();
+        std::string removed_element = list.POPFront();
         if (removed_element.empty())
             break;
         removed_elements.push_back(removed_element);
@@ -210,34 +218,40 @@ ExecResult CommandHandler::handleLPOP(const std::vector<std::string_view>& args)
  *   BLPOP mylist 0  → blocks until RPUSH mylist value
 */
 ExecResult CommandHandler::handleBLPOP(const std::vector<std::string_view>& args) {
-    // Sadece şu formu destekliyoruz: BLPOP key timeout
     if (args.size() != 3) {
         return ExecResult("-ERR wrong number of arguments for 'BLPOP'\r\n",
                           false, client_fd);
     }
 
     std::string list_name = std::string(args[1]);
-    auto& list = lists[list_name];
 
-    // If list is non-empty, return an immediate pop result
-    if (!list.Empty()) {
-        std::string value = list.POPFront();
-        std::vector<std::string> resp = { list_name, value };
-        return ExecResult(respArray(resp), false, client_fd);
+    // Önce mevcut list var mı, dolu mu kontrol et
+    RedisObj* obj = store.getObject(list_name);
+    if (obj && obj->type == RedisType::LIST) {
+        List& list = std::get<List>(obj->value);
+
+        if (!list.Empty()) {
+            std::string value = list.POPFront();
+            std::vector<std::string> resp = { list_name, value };
+            return ExecResult(respArray(resp), false, client_fd);
+        }
     }
 
+    // Liste yoksa ya da boşsa → block this client
     double timeout_sec = std::stod(std::string(args[2]));
     uint64_t deadline = 0;
 
-    if (timeout_sec > 0) 
-        deadline = current_time_ms() + (uint64_t)(timeout_sec * 1000);
-    // Otherwise, register client as blocked
+    if (timeout_sec > 0.0) {
+        deadline = current_time_ms() + static_cast<uint64_t>(timeout_sec * 1000.0);
+    }
+
     blockedClients[list_name].push_back({ client_fd, deadline });
 
-
-    // No response yet — EventLoop must not send anything
+    // No response now; EventLoop shouldn't write anything for this client.
+    // We'll respond either in maybeWakeBlockedClients or checkTimeouts.
     return ExecResult("", true, client_fd);
 }
+
 
 /**
  * ----------------------------------------------------
@@ -260,11 +274,12 @@ void CommandHandler::maybeWakeBlockedClients(const std::string& list_name) {
     if (blk_it == blockedClients.end())
         return;
 
-    auto list_it = lists.find(list_name);
-    if (list_it == lists.end())
+    // List objesini RedisStore'dan al
+    RedisObj* obj = store.getObject(list_name);
+    if (!obj || obj->type != RedisType::LIST)
         return;
 
-    List& list = list_it->second;
+    List& list = std::get<List>(obj->value);
     auto& waiters = blk_it->second;
 
     // Serve blocked clients in FIFO order
@@ -291,15 +306,16 @@ void CommandHandler::checkTimeouts() {
     uint64_t now = current_time_ms();
 
     for (auto &pair : blockedClients) {
-        const std::string &list_name = pair.first;
         auto &queue = pair.second;
 
-        while(!queue.empty()) {
+        while (!queue.empty()) {
             auto &bc = queue.front();
 
-            if(bc.deadline_ms == 0 || bc.deadline_ms > now)
+            // deadline_ms == 0 → block indefinitely
+            if (bc.deadline_ms == 0 || bc.deadline_ms > now)
                 break;
 
+            // Timeout expired → return RESP Null Array
             std::string payload = "*-1\r\n";
             ::write(bc.fd, payload.c_str(), payload.size());
 
@@ -310,6 +326,13 @@ void CommandHandler::checkTimeouts() {
     cleanup_empty_lists();
 }
 
+/**
+ * ----------------------------------------------------
+ * cleanup_empty_lists
+ * ----------------------------------------------------
+ * Utility to remove entries from the blockedClients map
+ * whose wait-queues are now empty after timeouts or wakeups.
+*/
 void CommandHandler::cleanup_empty_lists() {
     for (auto it = blockedClients.begin(); it != blockedClients.end(); ) {
         if (it->second.empty()) {

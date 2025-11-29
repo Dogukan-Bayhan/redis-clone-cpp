@@ -1,13 +1,13 @@
 #pragma once
 #include <sys/select.h>
-#include "../db/KeyValueStore.hpp"
+#include "../db/RedisStore.hpp"
 #include "../commands/CommandHandler.hpp"
 
 class EventLoop {
     int server_fd;
     fd_set current_fds;
     
-    KeyValueStore db;
+    RedisStore str;
     CommandHandler handler; 
 public:
     EventLoop(int serverFd);

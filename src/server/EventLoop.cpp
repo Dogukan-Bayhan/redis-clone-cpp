@@ -8,8 +8,8 @@
 
 EventLoop::EventLoop(int serverFd)
     : server_fd(serverFd),
-      db(),
-      handler(db)
+      str(),
+      handler(str)
 {
     FD_ZERO(&current_fds);
     FD_SET(server_fd, &current_fds);

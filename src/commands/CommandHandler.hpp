@@ -6,10 +6,9 @@
 #include <unordered_map>
 #include <deque>
 
-#include "../db/KeyValueStore.hpp"
-#include "../db/List.hpp"
 #include "../types/ExecResult.hpp"
 #include "../types/BlokedClient.hpp"
+#include "../db/RedisStore.hpp"
 
 /**
  * CommandHandler
@@ -26,7 +25,7 @@
 class CommandHandler
 {
 public:
-    explicit CommandHandler(KeyValueStore& kv);
+    explicit CommandHandler(RedisStore& str);
 
     /**
      * Executes a parsed RESP command.
@@ -44,16 +43,6 @@ public:
 private:
     // File descriptor of the currently executing client.
     int client_fd{};
-
-    // Reference to the main key-value store.
-    KeyValueStore& db;
-
-    /**
-     * In-memory list storage.
-     * Each list is identified by its key, similar to Redis lists.
-    */
-    std::unordered_map<std::string, List> lists;
-
 
     /**
      * Command function pointer type.
@@ -74,6 +63,8 @@ private:
      * (first client to block is the first to be served).
     */    
     std::unordered_map<std::string, std::deque<BlockedClient>> blockedClients;
+
+    RedisStore& store;
 
     // --------------------------------------------------------------------
     // RESP Encoding Helpers
