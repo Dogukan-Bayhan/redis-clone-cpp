@@ -63,6 +63,8 @@ The fields vector keeps insertion order, matching Redis behavior.
 */
 struct StreamEntry {
     std::string id;
+    long long ms;
+    long long seq;
     std::vector<std::pair<std::string, std::string>> fields;
 };
 
@@ -128,5 +130,7 @@ public:
     
     // Handles "*" (AUTO_GENERATED).
     // Generates a unique ID based on Unix time + sequence logic.
-    bool createUniqueId(std::string& id, std::string err);
+    bool createUniqueId(std::string& id, std::string& err);
+
+    std::vector<std::pair<std::string, std::string>> getPairsInRange();
 };

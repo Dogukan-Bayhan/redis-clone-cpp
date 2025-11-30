@@ -11,8 +11,6 @@
     1) "*"                  → AUTO_GENERATED
     2) "<ms>-<seq>"         → EXPLICIT
     3) "<ms>-*"             → AUTO_SEQUENCE
-    4) "*-*" or "*-<num>"   → INVALID in Redis, treat as INVALID here
-
   Redis XADD semantics:
     * EXPLICIT: full ID specified → must be strictly increasing
     * AUTO_SEQUENCE: timestamp fixed, sequence auto-generated
@@ -184,8 +182,14 @@ bool Stream::validateId(const std::string &id, std::string &err)
 */
 std::string Stream::addStream(const std::string &id, const std::vector<std::pair<std::string, std::string>> &fields)
 {
-    entries.push_back({id,
-                       fields});
+    StreamEntry entry;
+    entry.id = id;
+    entry.fields = fields;
+
+    // Fill ms/seq
+    parseIdToTwoInteger(id, entry.ms, entry.seq);
+
+    entries.push_back(entry);
     idToIndex[id] = entries.size() - 1;
     return id;
 }
@@ -322,7 +326,7 @@ bool Stream::addSequenceToId(std::string &id, std::string &err)
       Stream ID is always increasing even if system clock changes.
 ===============================================================================
 */
-bool Stream::createUniqueId(std::string &id, std::string err)
+bool Stream::createUniqueId(std::string &id, std::string& err)
 {
     long long now_ms = getUnixTimeMs();
 

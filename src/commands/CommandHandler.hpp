@@ -110,6 +110,7 @@ private:
     // Stream Handlers (Redis-style stream operations)
     // --------------------------------------------------------------------
     ExecResult handleXADD (const std::vector<std::string_view>& args);
+    ExecResult handleXRANGE (const std::vector<std::string_view>& args);
 
     /**
      * Blocking pop operation (BLPOP).

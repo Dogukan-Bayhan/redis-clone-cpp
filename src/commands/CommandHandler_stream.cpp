@@ -63,3 +63,20 @@ ExecResult CommandHandler::handleXADD(const std::vector<std::string_view>& args)
     return ExecResult(valueReturnResp(id),
                           false, client_fd);
 }
+
+
+#include "./CommandHandler.hpp"
+
+
+ExecResult CommandHandler::handleXRANGE(const std::vector<std::string_view>& args) {
+    if (args.size() < 4) 
+        return ExecResult("-ERR wrong number of arguments for 'XADD'\r\n",
+                          false, client_fd);
+
+    std::string stream_name = std::string(args[1]);
+    Stream& stream = store.getOrCreateStream(stream_name);
+
+    std::string id = std::string(args[2]);
+
+    
+}

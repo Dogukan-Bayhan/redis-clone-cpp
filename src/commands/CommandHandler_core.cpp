@@ -34,7 +34,8 @@ CommandHandler::CommandHandler(RedisStore& str)
         {"LPOP",  &CommandHandler::handleLPOP},
         {"BLPOP", &CommandHandler::handleBLPOP},
         {"TYPE", &CommandHandler::handleTYPE},
-        {"XADD", &CommandHandler::handleXADD}
+        {"XADD", &CommandHandler::handleXADD},
+        {"XRANGE", &CommandHandler::handleXRANGE}
     };
 }
 
