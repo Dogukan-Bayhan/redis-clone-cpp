@@ -368,3 +368,10 @@ bool Stream::createUniqueId(std::string &id, std::string& err)
     id = std::to_string(new_ms) + "-" + std::to_string(new_seq);
     return true;
 }
+
+
+std::vector<std::pair<std::string, std::string>> Stream::getPairsInRange() {
+    std::vector<std::pair<std::string, std::string>> pairs;
+
+    
+}
