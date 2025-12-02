@@ -157,3 +157,44 @@ ExecResult CommandHandler::execute(const std::vector<std::string_view>& args,
     // Invoke handler via member-function pointer
     return (this->*(it->second))(args);
 }
+
+std::string CommandHandler::respXRange(
+    const std::vector<
+        std::pair<
+            std::string,
+            std::vector<std::pair<std::string,std::string>>
+        >
+    >& entries
+) {
+    std::string out;
+
+    // Outer array length = number of entries
+    out += "*" + std::to_string(entries.size()) + "\r\n";
+
+    for (const auto& entry : entries) {
+        const std::string& id = entry.first;
+        const auto& fields = entry.second;
+
+        // Each entry itself is:
+        // *2
+        //   $len id
+        //   *N fields
+        out += "*2\r\n";
+
+        // ID bulk
+        out += "$" + std::to_string(id.size()) + "\r\n" + id + "\r\n";
+
+        // Fields array
+        out += "*" + std::to_string(fields.size() * 2) + "\r\n";
+
+        for (const auto& kv : fields) {
+            const auto& field = kv.first;
+            const auto& value = kv.second;
+
+            out += "$" + std::to_string(field.size()) + "\r\n" + field + "\r\n";
+            out += "$" + std::to_string(value.size()) + "\r\n" + value + "\r\n";
+        }
+    }
+
+    return out;
+}

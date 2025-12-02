@@ -39,11 +39,12 @@ This enum allows the command handler to perform correct ID logic
 before mutating the stream.
 ------------------------------------------------------------------------------
 */
-enum class StreamIdType {
-    EXPLICIT,
-    AUTO_SEQUENCE,
-    AUTO_GENERATED,
-    INVALID
+enum class StreamIdType
+{
+  EXPLICIT,
+  AUTO_SEQUENCE,
+  AUTO_GENERATED,
+  INVALID
 };
 
 /*
@@ -61,11 +62,12 @@ A Redis Stream is conceptually:
 The fields vector keeps insertion order, matching Redis behavior.
 ------------------------------------------------------------------------------
 */
-struct StreamEntry {
-    std::string id;
-    long long ms;
-    long long seq;
-    std::vector<std::pair<std::string, std::string>> fields;
+struct StreamEntry
+{
+  std::string id;
+  long long ms;
+  long long seq;
+  std::vector<std::pair<std::string, std::string>> fields;
 };
 
 /*
@@ -101,36 +103,37 @@ PUBLIC API:
 
 ------------------------------------------------------------------------------
 */
-class Stream {
+class Stream
+{
 private:
-    std::vector<StreamEntry> entries;
-    std::unordered_map<std::string, std::size_t> idToIndex;
+  std::vector<StreamEntry> entries;
 
-    // Parses "ms-seq" into two long long integers.
-    // Returns true on success, false on malformed input.
-    bool parseIdToTwoInteger(const std::string&, long long&, long long&);
+  // Parses "ms-seq" into two long long integers.
+  // Returns true on success, false on malformed input.
+  bool parseIdToTwoInteger(const std::string &, long long &, long long &);
 
 public:
-    // Determines the type of ID supplied by the user.
-    StreamIdType returnStreamType(const std::string& id);
-   
-    // Validates whether an ID is syntactically correct
-    // AND maintains strict monotonic ordering relative to last entry.
-    bool validateId(const std::string& id, std::string& err);
-    
-    // Appends a new entry to the stream.
-    // Handles EXPLICIT, AUTO_SEQUENCE, AUTO_GENERATED.
-    std::string addStream(const std::string& id,const std::vector<std::pair<std::string,std::string>>& fields);    
-    
-    // Fetches an entry by its ID in O(1).
-    const StreamEntry* getById(const std::string& id);
-    
-    // Handles "ms-*". Generates the smallest valid next sequence number.
-    bool addSequenceToId(std::string& id, std::string& err);
-    
-    // Handles "*" (AUTO_GENERATED).
-    // Generates a unique ID based on Unix time + sequence logic.
-    bool createUniqueId(std::string& id, std::string& err);
+  // Determines the type of ID supplied by the user.
+  StreamIdType returnStreamType(const std::string &id);
 
-    std::vector<std::pair<std::string, std::string>> getPairsInRange();
+  // Validates whether an ID is syntactically correct
+  // AND maintains strict monotonic ordering relative to last entry.
+  bool validateId(const std::string &id, std::string &err);
+
+  // Appends a new entry to the stream.
+  // Handles EXPLICIT, AUTO_SEQUENCE, AUTO_GENERATED.
+  std::string addStream(const std::string &id, const std::vector<std::pair<std::string, std::string>> &fields);
+
+  // Handles "ms-*". Generates the smallest valid next sequence number.
+  bool addSequenceToId(std::string &id, std::string &err);
+
+  // Handles "*" (AUTO_GENERATED).
+  // Generates a unique ID based on Unix time + sequence logic.
+  bool createUniqueId(std::string &id, std::string &err);
+
+  std::vector<
+      std::pair<
+          std::string,
+          std::vector<std::pair<std::string, std::string>>>>
+  getPairsInRange(std::string &err, const std::string &first, const std::string &second);
 };

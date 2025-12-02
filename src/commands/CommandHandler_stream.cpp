@@ -64,19 +64,38 @@ ExecResult CommandHandler::handleXADD(const std::vector<std::string_view>& args)
                           false, client_fd);
 }
 
-
-#include "./CommandHandler.hpp"
-
-
 ExecResult CommandHandler::handleXRANGE(const std::vector<std::string_view>& args) {
-    if (args.size() < 4) 
-        return ExecResult("-ERR wrong number of arguments for 'XADD'\r\n",
+    if (args.size() != 4) {
+        return ExecResult("-ERR wrong number of arguments for 'XRANGE'\r\n",
                           false, client_fd);
+    }
 
     std::string stream_name = std::string(args[1]);
-    Stream& stream = store.getOrCreateStream(stream_name);
+    std::string start_id    = std::string(args[2]);
+    std::string end_id      = std::string(args[3]);
 
-    std::string id = std::string(args[2]);
+    // Stream yoksa → boş array dön (Redis davranışı)
+    RedisObj* obj = store.getObject(stream_name);
+    if (!obj) {
+        return ExecResult(respArray({}), false, client_fd);
+    }
 
-    
+    if (obj->type != RedisType::STREAM) {
+        return ExecResult("-WRONGTYPE Key is not a stream\r\n",
+                          false, client_fd);
+    }
+
+    Stream& stream = std::get<Stream>(obj->value);
+
+    std::string err;
+    auto entries = stream.getPairsInRange(err, start_id, end_id);
+
+    if (!err.empty()) {
+        return ExecResult(err, false, client_fd);
+    }
+
+    // XRANGE output
+    std::string payload = respXRange(entries);
+    return ExecResult(payload, false, client_fd);
 }
+

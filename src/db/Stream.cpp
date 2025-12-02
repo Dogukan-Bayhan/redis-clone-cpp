@@ -161,7 +161,6 @@ bool Stream::validateId(const std::string &id, std::string &err)
     return true;
 }
 
-
 /*
 ===============================================================================
   addStream()
@@ -190,34 +189,8 @@ std::string Stream::addStream(const std::string &id, const std::vector<std::pair
     parseIdToTwoInteger(id, entry.ms, entry.seq);
 
     entries.push_back(entry);
-    idToIndex[id] = entries.size() - 1;
     return id;
 }
-
-
-/*
-===============================================================================
-  getById()
--------------------------------------------------------------------------------
-  Fast O(1) lookup of a stream entry by its ID.
-
-  Uses:
-      idToIndex → unordered_map<string, index>
-
-  Returns:
-      pointer to StreamEntry  → found
-      nullptr                 → ID not present
-===============================================================================
-*/
-const StreamEntry *Stream::getById(const std::string &id)
-{
-    auto it = idToIndex.find(id);
-    if (it == idToIndex.end())
-        return nullptr;
-
-    return &entries[it->second];
-}
-
 
 /*
 ===============================================================================
@@ -326,7 +299,7 @@ bool Stream::addSequenceToId(std::string &id, std::string &err)
       Stream ID is always increasing even if system clock changes.
 ===============================================================================
 */
-bool Stream::createUniqueId(std::string &id, std::string& err)
+bool Stream::createUniqueId(std::string &id, std::string &err)
 {
     long long now_ms = getUnixTimeMs();
 
@@ -369,9 +342,115 @@ bool Stream::createUniqueId(std::string &id, std::string& err)
     return true;
 }
 
+std::vector<
+    std::pair<
+        std::string,
+        std::vector<std::pair<std::string,std::string>>
+    >
+>
+Stream::getPairsInRange(std::string& err, const std::string& first, const std::string& second)
+{
+    err.clear();
 
-std::vector<std::pair<std::string, std::string>> Stream::getPairsInRange() {
-    std::vector<std::pair<std::string, std::string>> pairs;
+    using ReturnType = std::vector<
+        std::pair<
+            std::string,
+            std::vector<std::pair<std::string,std::string>>
+        >
+    >;
 
-    
+    ReturnType result;
+
+    if (entries.empty())
+        return result;
+
+    long long first_ms, first_seq;
+    long long second_ms, second_seq;
+
+    bool ok = parseIdToTwoInteger(first, first_ms, first_seq);
+    if (!ok) {
+        err = "-ERR invalid stream ID for XRANGE start\r\n";
+        return {};
+    }
+
+    ok = parseIdToTwoInteger(second, second_ms, second_seq);
+    if (!ok) {
+        err = "-ERR invalid stream ID for XRANGE end\r\n";
+        return {};
+    }
+
+    // Comparator for (ms, seq)
+    auto cmp_id = [](long long a_ms, long long a_seq,
+                     long long b_ms, long long b_seq) -> int {
+        if (a_ms < b_ms) return -1;
+        if (a_ms > b_ms) return 1;
+        if (a_seq < b_seq) return -1;
+        if (a_seq > b_seq) return 1;
+        return 0;
+    };
+
+    // Sanity check: first <= second ?
+    if (cmp_id(first_ms, first_seq, second_ms, second_seq) > 0)
+        return result;
+
+    int n = entries.size();
+
+    // ---------------------------------------------------------------
+    // 1) Find start_idx = first entry >= first_id   (lower_bound)
+    // ---------------------------------------------------------------
+    int lo = 0, hi = n - 1;
+    int start_idx = n; // default: not found
+
+    while (lo <= hi) {
+        int mid = lo + (hi - lo) / 2;
+
+        int comp = cmp_id(entries[mid].ms, entries[mid].seq,
+                          first_ms, first_seq);
+
+        if (comp >= 0) {
+            start_idx = mid;
+            hi = mid - 1;
+        } else {
+            lo = mid + 1;
+        }
+    }
+
+    // ---------------------------------------------------------------
+    // 2) Find end_idx = last entry <= second_id   (upper_bound - 1)
+    // ---------------------------------------------------------------
+    lo = 0; hi = n - 1;
+    int end_idx = -1;
+
+    while (lo <= hi) {
+        int mid = lo + (hi - lo) / 2;
+
+        int comp = cmp_id(entries[mid].ms, entries[mid].seq,
+                          second_ms, second_seq);
+
+        if (comp <= 0) {
+            end_idx = mid;
+            lo = mid + 1;
+        } else {
+            hi = mid - 1;
+        }
+    }
+
+    if (start_idx == n || end_idx == -1 || start_idx > end_idx)
+        return result;
+
+    // ---------------------------------------------------------------
+    // 3) Copy entries into return vector
+    // ---------------------------------------------------------------
+    result.reserve(end_idx - start_idx + 1);
+
+    for (int i = start_idx; i <= end_idx; ++i) {
+        const StreamEntry &entry = entries[i];
+
+        result.emplace_back(
+            entry.id,
+            entry.fields   // vector<pair<string,string>>
+        );
+    }
+
+    return result;
 }

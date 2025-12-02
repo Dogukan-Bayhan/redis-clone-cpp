@@ -88,6 +88,14 @@ private:
     /** RESP Array: *N\r\n ... */
     std::string respArray(const std::vector<std::string>& values);
 
+    std::string CommandHandler::respXRange(
+    const std::vector<
+        std::pair<
+            std::string,
+            std::vector<std::pair<std::string,std::string>>
+        >
+    >& entries);
+
     // --------------------------------------------------------------------
     // String / KV Handlers
     // --------------------------------------------------------------------
