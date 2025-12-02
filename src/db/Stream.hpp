@@ -142,4 +142,10 @@ public:
           std::string,
           std::vector<std::pair<std::string, std::string>>>>
   getPairsFromStartToId(std::string &err, const std::string &second);
+
+  std::vector<
+      std::pair<
+          std::string,
+          std::vector<std::pair<std::string, std::string>>>>
+  getPairsFromIdToEnd(std::string &err, const std::string &first);
 };

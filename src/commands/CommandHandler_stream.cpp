@@ -95,6 +95,12 @@ ExecResult CommandHandler::handleXRANGE(const std::vector<std::string_view>& arg
         return ExecResult(payload, false, client_fd);
     }
 
+    if (end_id == "+") {
+        auto entries = stream.getPairsFromIdToEnd(err, end_id);
+        std::string payload = respXRange(entries);
+        return ExecResult(payload, false, client_fd);
+    }
+
     auto entries = stream.getPairsInRange(err, start_id, end_id);
 
     if (!err.empty()) {
