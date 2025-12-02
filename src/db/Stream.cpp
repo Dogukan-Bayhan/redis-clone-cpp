@@ -608,7 +608,7 @@ Stream::getPairsFromIdToEnd(std::string& err, const std::string& first)
     // ---------------------------------------------------------------
     result.reserve(n - start_idx + 1);
 
-    for (int i = start_idx; i <= n; ++i) {
+    for (int i = start_idx; i <= n - 1; ++i) {
         const StreamEntry &entry = entries[i];
 
         result.emplace_back(
