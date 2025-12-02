@@ -37,6 +37,7 @@ CommandHandler::CommandHandler(RedisStore& str)
         {"XADD", &CommandHandler::handleXADD},
         {"XRANGE", &CommandHandler::handleXRANGE}
     };
+    
 }
 
 
