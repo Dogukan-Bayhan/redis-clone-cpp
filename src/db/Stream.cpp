@@ -454,3 +454,87 @@ Stream::getPairsInRange(std::string& err, const std::string& first, const std::s
 
     return result;
 }
+
+std::vector<
+    std::pair<
+        std::string,
+        std::vector<std::pair<std::string,std::string>>
+    >
+>
+Stream::getPairsFromStartToId(std::string& err, const std::string& second)
+{
+    err.clear();
+
+    using ReturnType = std::vector<
+        std::pair<
+            std::string,
+            std::vector<std::pair<std::string,std::string>>
+        >
+    >;
+
+    ReturnType result;
+
+    if (entries.empty())
+        return result;
+
+    long long second_ms, second_seq;
+
+    bool ok = parseIdToTwoInteger(second, second_ms, second_seq);
+    if (!ok) {
+        err = "-ERR invalid stream ID for XRANGE end\r\n";
+        return {};
+    }
+
+    // Comparator for (ms, seq)
+    auto cmp_id = [](long long a_ms, long long a_seq,
+                     long long b_ms, long long b_seq) -> int {
+        if (a_ms < b_ms) return -1;
+        if (a_ms > b_ms) return 1;
+        if (a_seq < b_seq) return -1;
+        if (a_seq > b_seq) return 1;
+        return 0;
+    };
+
+    int n = entries.size();
+
+    // ---------------------------------------------------------------
+    // 2) Find end_idx = last entry <= second_id   (upper_bound - 1)
+    // ---------------------------------------------------------------
+    int lo = 0; 
+    int hi = n - 1;
+    int end_idx = -1;
+
+    while (lo <= hi) {
+        int mid = lo + (hi - lo) / 2;
+
+        int comp = cmp_id(entries[mid].ms, entries[mid].seq,
+                          second_ms, second_seq);
+
+        if (comp <= 0) {
+            end_idx = mid;
+            lo = mid + 1;
+        } else {
+            hi = mid - 1;
+        }
+    }
+
+    if (end_idx == -1)
+        return result;
+
+    // ---------------------------------------------------------------
+    // 3) Copy entries into return vector
+    // ---------------------------------------------------------------
+    result.reserve(end_idx + 1);
+
+    for (int i = 0; i <= end_idx; ++i) {
+        const StreamEntry &entry = entries[i];
+
+        result.emplace_back(
+            entry.id,
+            entry.fields   // vector<pair<string,string>>
+        );
+    }
+
+    return result;
+}
+

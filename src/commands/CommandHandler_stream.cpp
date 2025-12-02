@@ -88,6 +88,13 @@ ExecResult CommandHandler::handleXRANGE(const std::vector<std::string_view>& arg
     Stream& stream = std::get<Stream>(obj->value);
 
     std::string err;
+
+    if (start_id == "-") {
+        auto entries = stream.getPairsFromStartToId(err, end_id);
+        std::string payload = respXRange(entries);
+        return ExecResult(payload, false, client_fd);
+    }
+
     auto entries = stream.getPairsInRange(err, start_id, end_id);
 
     if (!err.empty()) {
