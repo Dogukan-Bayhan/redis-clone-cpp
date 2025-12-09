@@ -35,7 +35,8 @@ CommandHandler::CommandHandler(RedisStore& str)
         {"BLPOP", &CommandHandler::handleBLPOP},
         {"TYPE", &CommandHandler::handleTYPE},
         {"XADD", &CommandHandler::handleXADD},
-        {"XRANGE", &CommandHandler::handleXRANGE}
+        {"XRANGE", &CommandHandler::handleXRANGE},
+        {"XREAD", &CommandHandler::handleXRANGE}
     };
     
 }
@@ -194,6 +195,44 @@ std::string CommandHandler::respXRange(
 
             out += "$" + std::to_string(field.size()) + "\r\n" + field + "\r\n";
             out += "$" + std::to_string(value.size()) + "\r\n" + value + "\r\n";
+        }
+    }
+
+    return out;
+}
+
+std::string CommandHandler::respXRead(
+    const std::string& stream_name,
+    const std::vector<
+        std::pair<
+            std::string,
+            std::vector<std::pair<std::string,std::string>>
+        >
+    >& entries
+) {
+    // Outer array of streams: *1
+    std::string out = "*1\r\n";
+
+    // Stream entry: ["stream_name", entries[]]
+    out += "*2\r\n";
+    out += respBulk(stream_name); // $len\r\nname\r\n
+
+    // entries array
+    out += "*" + std::to_string(entries.size()) + "\r\n";
+
+    for (const auto& e : entries) {
+        const std::string& id = e.first;
+        const auto& fields = e.second;
+
+        // Each entry is [id, field-array]
+        out += "*2\r\n";
+        out += respBulk(id);
+
+        // Field array
+        out += "*" + std::to_string(fields.size() * 2) + "\r\n";
+        for (const auto& kv : fields) {
+            out += respBulk(kv.first);
+            out += respBulk(kv.second);
         }
     }
 

@@ -112,3 +112,35 @@ ExecResult CommandHandler::handleXRANGE(const std::vector<std::string_view>& arg
     return ExecResult(payload, false, client_fd);
 }
 
+ExecResult CommandHandler::handleXREAD(const std::vector<std::string_view>& args) {
+    // Expected:
+    // XREAD STREAMS <key> <id>
+    if (args.size() != 4)
+        return ExecResult("-ERR wrong number of arguments for 'XREAD'\r\n",
+                          false, client_fd);
+
+    if (args[1] != "STREAMS")
+        return ExecResult("-ERR syntax error\r\n", false, client_fd);
+
+    std::string stream_name = std::string(args[2]);
+    std::string start_id = std::string(args[3]);
+
+    // Stream objesini al
+    Stream& stream = store.getOrCreateStream(stream_name);
+
+    std::string err;
+    auto entries = stream.getPairsFromIdToEnd(err, start_id);
+
+    if (!err.empty())
+        return ExecResult(err, false, client_fd);
+
+    if (entries.empty()) {
+        // Redis: XREAD returns nil when no entries
+        return ExecResult("$-1\r\n", false, client_fd);
+    }
+
+    // RESP array encoding
+    std::string resp = respXRead(stream_name, entries);
+
+    return ExecResult(resp, false, client_fd);
+}

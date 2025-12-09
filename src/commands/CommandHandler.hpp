@@ -25,15 +25,15 @@
 class CommandHandler
 {
 public:
-    explicit CommandHandler(RedisStore& str);
+    explicit CommandHandler(RedisStore &str);
 
     /**
      * Executes a parsed RESP command.
      * @param args      Parsed RESP tokens (command + arguments).
      * @param client_fd Calling client's file descriptor.
      * @return          Response payload + metadata.
-    */
-    ExecResult execute(const std::vector<std::string_view>& args, int client_fd);
+     */
+    ExecResult execute(const std::vector<std::string_view> &args, int client_fd);
 
     /**
      * Responses are returned to clients who have previously made a request but whose time has passed.
@@ -47,13 +47,13 @@ private:
     /**
      * Command function pointer type.
      * Each command handler accepts a vector of arguments and returns an ExecResult.
-    */
-    using CmdFn = ExecResult (CommandHandler::*)(const std::vector<std::string_view>&);
+     */
+    using CmdFn = ExecResult (CommandHandler::*)(const std::vector<std::string_view> &);
 
     /**
      * Command dispatch table.
      * Maps uppercase RESP command names to their handler functions.
-    */
+     */
     std::unordered_map<std::string, CmdFn> commandMap;
 
     /**
@@ -61,20 +61,20 @@ private:
      * Maps: list_name -> queue of client_fds waiting for elements.
      * The order in the deque ensures FIFO wake-up semantics
      * (first client to block is the first to be served).
-    */    
+     */
     std::unordered_map<std::string, std::deque<BlockedClient>> blockedClients;
 
-    RedisStore& store;
+    RedisStore &store;
 
     // --------------------------------------------------------------------
     // RESP Encoding Helpers
     // --------------------------------------------------------------------
 
     /** Constructs a RESP Bulk String containing a value. */
-    std::string valueReturnResp(const std::string& value);
+    std::string valueReturnResp(const std::string &value);
 
     /** RESP Simple String: +OK\r\n style responses. */
-    std::string simpleString(const std::string& s);
+    std::string simpleString(const std::string &s);
 
     /** RESP Integer: :123\r\n */
     std::string respInteger(long long n);
@@ -83,42 +83,48 @@ private:
     std::string nullBulk();
 
     /** RESP Bulk String: $len\r\nvalue\r\n */
-    std::string respBulk(const std::string& value);
+    std::string respBulk(const std::string &value);
 
     /** RESP Array: *N\r\n ... */
-    std::string respArray(const std::vector<std::string>& values);
+    std::string respArray(const std::vector<std::string> &values);
 
     std::string respXRange(
-    const std::vector<
-        std::pair<
-            std::string,
-            std::vector<std::pair<std::string,std::string>>
-        >
-    >& entries);
+        const std::vector<
+            std::pair<
+                std::string,
+                std::vector<std::pair<std::string, std::string>>>> &entries);
+
+    std::string respXRead(
+        const std::string &stream_name,
+        const std::vector<
+            std::pair<
+                std::string,
+                std::vector<std::pair<std::string, std::string>>>> &entries);
 
     // --------------------------------------------------------------------
     // String / KV Handlers
     // --------------------------------------------------------------------
-    ExecResult handlePING(const std::vector<std::string_view>& args);
-    ExecResult handleECHO(const std::vector<std::string_view>& args);
-    ExecResult handleSET (const std::vector<std::string_view>& args);
-    ExecResult handleGET (const std::vector<std::string_view>& args);
-    ExecResult handleTYPE(const std::vector<std::string_view>& args);
-    
+    ExecResult handlePING(const std::vector<std::string_view> &args);
+    ExecResult handleECHO(const std::vector<std::string_view> &args);
+    ExecResult handleSET(const std::vector<std::string_view> &args);
+    ExecResult handleGET(const std::vector<std::string_view> &args);
+    ExecResult handleTYPE(const std::vector<std::string_view> &args);
+
     // --------------------------------------------------------------------
     // List Handlers (Redis-style list operations)
     // --------------------------------------------------------------------
-    ExecResult handleRPUSH (const std::vector<std::string_view>& args);
-    ExecResult handleLPUSH (const std::vector<std::string_view>& args);
-    ExecResult handleLRANGE (const std::vector<std::string_view>& args);
-    ExecResult handleLLEN (const std::vector<std::string_view>& args);
-    ExecResult handleLPOP (const std::vector<std::string_view>& args);
-    
+    ExecResult handleRPUSH(const std::vector<std::string_view> &args);
+    ExecResult handleLPUSH(const std::vector<std::string_view> &args);
+    ExecResult handleLRANGE(const std::vector<std::string_view> &args);
+    ExecResult handleLLEN(const std::vector<std::string_view> &args);
+    ExecResult handleLPOP(const std::vector<std::string_view> &args);
+
     // --------------------------------------------------------------------
     // Stream Handlers (Redis-style stream operations)
     // --------------------------------------------------------------------
-    ExecResult handleXADD (const std::vector<std::string_view>& args);
-    ExecResult handleXRANGE (const std::vector<std::string_view>& args);
+    ExecResult handleXADD(const std::vector<std::string_view> &args);
+    ExecResult handleXRANGE(const std::vector<std::string_view> &args);
+    ExecResult handleXREAD(const std::vector<std::string_view> &args);
 
     /**
      * Blocking pop operation (BLPOP).
@@ -128,7 +134,7 @@ private:
      *   • If the list is empty     → register the client as blocked.
      *     (No response is sent; wake-up happens on future RPUSH/LPUSH)
      */
-    ExecResult handleBLPOP (const std::vector<std::string_view>& args);
+    ExecResult handleBLPOP(const std::vector<std::string_view> &args);
 
     /**
      * Attempts to wake clients blocked on BLPOP.
@@ -137,7 +143,7 @@ private:
      *
      * @param list_name Name of the list for which new elements were inserted.
      */
-    void maybeWakeBlockedClients(const std::string& list_name);
+    void maybeWakeBlockedClients(const std::string &list_name);
 
     void cleanup_empty_lists();
 };
