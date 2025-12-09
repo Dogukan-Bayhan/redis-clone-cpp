@@ -119,8 +119,8 @@ ExecResult CommandHandler::handleXREAD(const std::vector<std::string_view>& args
         return ExecResult("-ERR wrong number of arguments for 'XREAD'\r\n",
                           false, client_fd);
 
-    if (args[1] != "STREAMS")
-        return ExecResult("-ERR syntax error\r\n", false, client_fd);
+    // if (args[1] != "STREAMS")
+    //     return ExecResult("-ERR syntax error\r\n", false, client_fd);
 
     std::string stream_name = std::string(args[2]);
     std::string start_id = std::string(args[3]);
