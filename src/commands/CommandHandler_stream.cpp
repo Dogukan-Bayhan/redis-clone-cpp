@@ -125,9 +125,17 @@ ExecResult CommandHandler::handleXREAD(const std::vector<std::string_view>& args
     std::string stream_name = std::string(args[2]);
     std::string start_id = std::string(args[3]);
 
-    // Stream objesini al
-    Stream& stream = store.getOrCreateStream(stream_name);
+    RedisObj* obj = store.getObject(stream_name);
+    if (!obj) {
+        // Redis behavior: XREAD returns nil when stream doesn't exist
+        return ExecResult("$-1\r\n", false, client_fd);
+    }
 
+    if (obj->type != RedisType::STREAM) {
+        return ExecResult("-WRONGTYPE Key is not a stream\r\n", false, client_fd);
+    }
+
+    Stream& stream = std::get<Stream>(obj->value);
     std::string err;
     auto entries = stream.getPairsFromIdToEnd(err, start_id);
 
