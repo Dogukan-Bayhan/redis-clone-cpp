@@ -201,38 +201,41 @@ std::string CommandHandler::respXRange(
     return out;
 }
 
-std::string CommandHandler::respXRead(
-    const std::string& stream_name,
-    const std::vector<
-        std::pair<
-            std::string,
-            std::vector<std::pair<std::string,std::string>>
-        >
-    >& entries
-) {
-    // Outer array of streams: *1
-    std::string out = "*1\r\n";
+std::string respXRead(const std::string& stream_name,
+                      const std::vector<std::pair<std::string,
+                          std::vector<std::pair<std::string,std::string>>>>& entries)
+{
+    std::string out;
 
-    // Stream entry: ["stream_name", entries[]]
+    // Outer array for ONE stream: ["stream", [entries]]
     out += "*2\r\n";
-    out += respBulk(stream_name); // $len\r\nname\r\n
 
-    // entries array
+    // Stream name
+    out += "$" + std::to_string(stream_name.size()) + "\r\n";
+    out += stream_name + "\r\n";
+
+    // Entries array
     out += "*" + std::to_string(entries.size()) + "\r\n";
 
-    for (const auto& e : entries) {
+    for (auto& e : entries) {
         const std::string& id = e.first;
         const auto& fields = e.second;
 
-        // Each entry is [id, field-array]
+        // For each entry: [id, [field value field value]]
         out += "*2\r\n";
-        out += respBulk(id);
 
-        // Field array
+        // ID
+        out += "$" + std::to_string(id.size()) + "\r\n";
+        out += id + "\r\n";
+
+        // Field list
         out += "*" + std::to_string(fields.size() * 2) + "\r\n";
-        for (const auto& kv : fields) {
-            out += respBulk(kv.first);
-            out += respBulk(kv.second);
+        for (auto& p : fields) {
+            out += "$" + std::to_string(p.first.size()) + "\r\n";
+            out += p.first + "\r\n";
+
+            out += "$" + std::to_string(p.second.size()) + "\r\n";
+            out += p.second + "\r\n";
         }
     }
 
