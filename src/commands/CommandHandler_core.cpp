@@ -238,3 +238,26 @@ std::string CommandHandler::respXRead(
 
     return out;
 }
+
+std::string CommandHandler::wrapXReadBlocks(const std::vector<std::string>& blocks) {
+
+    // Final RESP: *N\r\n
+    std::string resp = "*" + std::to_string(blocks.size()) + "\r\n";
+
+    for (const auto& b : blocks) {
+
+        // 1) Remove leading "*1\r\n"
+        size_t pos = b.find("\r\n");
+        if (pos == std::string::npos) {
+            resp += b;
+            continue;
+        }
+
+        std::string trimmed = b.substr(pos + 2); // skip "*1\r\n"
+
+        // 2) Append cleaned block
+        resp += trimmed;
+    }
+
+    return resp;
+}

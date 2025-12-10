@@ -101,6 +101,8 @@ private:
                 std::string,
                 std::vector<std::pair<std::string, std::string>>>> &entries);
 
+    std::string wrapXReadBlocks(const std::vector<std::string>& blocks);
+
     // --------------------------------------------------------------------
     // String / KV Handlers
     // --------------------------------------------------------------------

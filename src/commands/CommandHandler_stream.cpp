@@ -188,10 +188,6 @@ ExecResult CommandHandler::handleXREAD(const std::vector<std::string_view>& args
         return ExecResult("$-1\r\n", false, client_fd);
 
     // Build final RESP array
-    std::string resp;
-    resp += "*" + std::to_string(outerArray.size()) + "\r\n";
-    for (auto& block : outerArray)
-        resp += block;
-
+    std::string resp = wrapXReadBlocks(outerArray);
     return ExecResult(resp, false, client_fd);
 }
