@@ -61,9 +61,49 @@ ExecResult CommandHandler::handleXADD(const std::vector<std::string_view>& args)
 
     stream.addStream(id, fields);
 
+    wakeBlockedXReadClients(stream_name, id);
+
     return ExecResult(valueReturnResp(id),
                           false, client_fd);
 }
+
+void CommandHandler::wakeBlockedXReadClients(
+    const std::string& stream_name,
+    const std::string& new_id
+) {
+    std::vector<BlockedXReadClient> stillBlocked;
+
+    for (auto& bc : blockedXReadClients) {
+        if (bc.stream_name != stream_name) {
+            stillBlocked.push_back(bc);
+            continue;
+        }
+
+        RedisObj* obj = store.getObject(stream_name);
+        if (!obj || obj->type != RedisType::STREAM) {
+            continue;
+        }
+
+        Stream& stream = std::get<Stream>(obj->value);
+
+        std::string err;
+        auto entries = stream.getPairsFromIdToEnd(err, bc.last_id);
+        if (!err.empty() || entries.empty()) {
+            continue;
+        }
+
+        // Encode response
+        std::string blockResp = wrapXReadBlocks({
+            respXRead(stream_name, entries)
+        });
+
+        ::write(bc.fd, blockResp.c_str(), blockResp.size());
+        // Do not re-add → remove from block list
+    }
+
+    blockedXReadClients = std::move(stillBlocked);
+}
+
 
 ExecResult CommandHandler::handleXRANGE(const std::vector<std::string_view>& args) {
     if (args.size() != 4) {

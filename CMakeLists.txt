@@ -2,14 +2,36 @@ cmake_minimum_required(VERSION 3.13)
 
 project(redis-starter-cpp)
 
-file(GLOB_RECURSE SOURCE_FILES src/*.cpp)
-
-set(CMAKE_CXX_STANDARD 23) # Enable the C++23 standard
+set(CMAKE_CXX_STANDARD 23)
+set(CMAKE_CXX_STANDARD_REQUIRED ON)
 set(THREADS_PREFER_PTHREAD_FLAG ON)
 
+file(GLOB_RECURSE SOURCE_FILES src/*.cpp)
+
+include(FetchContent)
+
+FetchContent_Declare(
+    asio
+    GIT_REPOSITORY https://github.com/chriskohlhoff/asio.git
+    GIT_TAG asio-1-28-0
+)
+FetchContent_GetProperties(asio)
+if(NOT asio_POPULATED)
+    FetchContent_Populate(asio)
+    add_library(asio INTERFACE)
+    target_include_directories(asio INTERFACE ${asio_SOURCE_DIR}/asio/include)
+    target_compile_definitions(asio INTERFACE ASIO_STANDALONE)
+endif()
+
+FetchContent_Declare(
+    googletest
+    GIT_REPOSITORY https://github.com/google/googletest.git
+    GIT_TAG v1.14.0
+)
+set(gtest_force_shared_crt ON CACHE BOOL "" FORCE)
+FetchContent_MakeAvailable(googletest)
+
 find_package(Threads REQUIRED)
-find_package(asio CONFIG REQUIRED)
-find_package(GTest CONFIG REQUIRED)
 
 enable_testing()
 
@@ -17,7 +39,7 @@ set(SERVER_SOURCES ${SOURCE_FILES})
 list(FILTER SERVER_SOURCES EXCLUDE REGEX "src/main\\.cpp")
 
 add_library(redis_lib ${SERVER_SOURCES})
-target_link_libraries(redis_lib PRIVATE asio asio::asio Threads::Threads)
+target_link_libraries(redis_lib PRIVATE asio Threads::Threads)
 
 add_executable(redis src/main.cpp)
 target_link_libraries(redis PRIVATE redis_lib)

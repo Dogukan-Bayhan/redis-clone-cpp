@@ -150,6 +150,9 @@ private:
      * @param list_name Name of the list for which new elements were inserted.
      */
     void maybeWakeBlockedClients(const std::string &list_name);
+    void CommandHandler::wakeBlockedXReadClients(
+    const std::string& stream_name,
+    const std::string& new_id);
 
     void cleanup_empty_lists();
 };
