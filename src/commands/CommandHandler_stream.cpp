@@ -162,6 +162,8 @@ ExecResult CommandHandler::handleXREAD(const std::vector<std::string_view>& args
         const std::string& key = stream_names[i];
         const std::string& id  = stream_ids[i];
 
+        std::cout << key << " " << id << std::endl;
+
         RedisObj* obj = store.getObject(key);
         if (!obj || obj->type != RedisType::STREAM) {
             // If the stream doesn’t exist → skip (Redis ignores missing stream)
