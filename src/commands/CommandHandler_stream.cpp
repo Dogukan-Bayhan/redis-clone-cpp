@@ -113,42 +113,85 @@ ExecResult CommandHandler::handleXRANGE(const std::vector<std::string_view>& arg
 }
 
 ExecResult CommandHandler::handleXREAD(const std::vector<std::string_view>& args) {
-    // Expected:
-    // XREAD STREAMS <key> <id>
-    if (args.size() != 4)
+    // Minimum: XREAD STREAMS <stream...> <id...>
+    if (args.size() < 4)
         return ExecResult("-ERR wrong number of arguments for 'XREAD'\r\n",
                           false, client_fd);
 
-    // if (args[1] != "STREAMS")
-    //     return ExecResult("-ERR syntax error\r\n", false, client_fd);
+    if (args[1] != "STREAMS")
+        return ExecResult("-ERR syntax error\r\n", false, client_fd);
 
-    std::string stream_name = std::string(args[2]);
-    std::string start_id = std::string(args[3]);
+    // -------------------------------------------------
+    // Split arguments into two groups:
+    //   STREAMS  s1 s2 s3   id1 id2 id3
+    // -------------------------------------------------
+    int total = args.size();
 
-    RedisObj* obj = store.getObject(stream_name);
-    if (!obj) {
-        // Redis behavior: XREAD returns nil when stream doesn't exist
+    // Find the midpoint: ids begin after half
+    // STREAMS s1 s2 ... id1 id2 ...
+    // So number of stream names = number of ids
+    int half = (total - 2) / 2;
+
+    if ((total - 2) % 2 != 0) {
+        return ExecResult("-ERR XREAD requires equal number of streams and IDs\r\n",
+                          false, client_fd);
+    }
+
+    std::vector<std::string> stream_names;
+    std::vector<std::string> stream_ids;
+
+    stream_names.reserve(half);
+    stream_ids.reserve(half);
+
+    for (int i = 2; i < 2 + half; i++)
+        stream_names.push_back(std::string(args[i]));
+
+    for (int i = 2 + half; i < total; i++)
+        stream_ids.push_back(std::string(args[i]));
+
+    // Now we have:
+    // streams: [s1, s2, s3]
+    // ids:     [id1, id2, id3]
+
+    // -------------------------------------------------
+    // Process each stream independently
+    // -------------------------------------------------
+    std::vector<std::string> outerArray;  // RESP array of streams
+
+    for (int i = 0; i < half; i++) {
+        const std::string& key = stream_names[i];
+        const std::string& id  = stream_ids[i];
+
+        RedisObj* obj = store.getObject(key);
+        if (!obj || obj->type != RedisType::STREAM) {
+            // If the stream doesn’t exist → skip (Redis ignores missing stream)
+            continue;
+        }
+
+        Stream& stream = std::get<Stream>(obj->value);
+
+        std::string err;
+        auto entries = stream.getPairsFromIdToEnd(err, id);
+
+        if (!err.empty())
+            return ExecResult(err, false, client_fd);
+
+        if (entries.empty())
+            continue;  // No results for this stream
+
+        // Encode this stream’s result
+        outerArray.push_back(respXRead(key, entries));
+    }
+
+    // No results from any stream → return nil ($-1)
+    if (outerArray.empty())
         return ExecResult("$-1\r\n", false, client_fd);
-    }
 
-    if (obj->type != RedisType::STREAM) {
-        return ExecResult("-WRONGTYPE Key is not a stream\r\n", false, client_fd);
-    }
-
-    Stream& stream = std::get<Stream>(obj->value);
-    std::string err;
-    auto entries = stream.getPairsFromIdToEnd(err, start_id);
-
-    if (!err.empty())
-        return ExecResult(err, false, client_fd);
-
-    if (entries.empty()) {
-        // Redis: XREAD returns nil when no entries
-        return ExecResult("$-1\r\n", false, client_fd);
-    }
-
-    // RESP array encoding
-    std::string resp = respXRead(stream_name, entries);
+    // Build final RESP array
+    std::string resp;
+    resp += "*" + std::to_string(outerArray.size()) + "\r\n";
+    for (auto& block : outerArray)
+        resp += block;
 
     return ExecResult(resp, false, client_fd);
 }
