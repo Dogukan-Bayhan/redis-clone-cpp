@@ -162,7 +162,7 @@ ExecResult CommandHandler::handleXREAD(const std::vector<std::string_view>& args
     uint64_t block_timeout = 0;
 
     // -------------------------------------------------
-    // 1) Check BLOCK option
+    // 1) Parse BLOCK option
     // -------------------------------------------------
     if (idx < args.size() && (args[idx] == "BLOCK" || args[idx] == "block")) {
         is_blocking = true;
@@ -176,7 +176,7 @@ ExecResult CommandHandler::handleXREAD(const std::vector<std::string_view>& args
             return ExecResult("-ERR invalid timeout\r\n", false, client_fd);
         }
 
-        idx += 2; // skip BLOCK <ms>
+        idx += 2;
     }
 
     // -------------------------------------------------
@@ -185,18 +185,14 @@ ExecResult CommandHandler::handleXREAD(const std::vector<std::string_view>& args
     if (idx >= args.size() || args[idx] != "streams")
         return ExecResult("-ERR syntax error\r\n", false, client_fd);
 
-    idx++; // move past STREAMS
+    idx++;
 
-    // From here: STREAMS k1 k2 ... id1 id2 ...
     int remaining = args.size() - idx;
-
     if (remaining < 2)
-        return ExecResult("-ERR wrong number of arguments for 'XREAD'\r\n",
-                          false, client_fd);
+        return ExecResult("-ERR wrong number of arguments for 'XREAD'\r\n", false, client_fd);
 
     if (remaining % 2 != 0)
-        return ExecResult("-ERR XREAD requires equal number of streams and IDs\r\n",
-                          false, client_fd);
+        return ExecResult("-ERR XREAD requires equal number of streams and IDs\r\n", false, client_fd);
 
     int half = remaining / 2;
 
@@ -213,21 +209,22 @@ ExecResult CommandHandler::handleXREAD(const std::vector<std::string_view>& args
         stream_ids.push_back(std::string(args[idx + half + i]));
 
     // -------------------------------------------------
-    // 3) Try to read immediately
+    // 3) Immediate read attempt
     // -------------------------------------------------
-    std::vector<std::string> outerArray;  
+    std::vector<std::string> results;
 
     for (int i = 0; i < half; i++) {
-        const std::string &key = stream_names[i];
-        const std::string &raw_id  = stream_ids[i];
 
-        RedisObj *obj = store.getObject(key);
+        const std::string& key = stream_names[i];
+        const std::string& raw_id = stream_ids[i];
+
+        RedisObj* obj = store.getObject(key);
         if (!obj || obj->type != RedisType::STREAM)
             continue;
 
-        Stream &stream = std::get<Stream>(obj->value);
+        Stream& stream = std::get<Stream>(obj->value);
 
-        // GIVEN ID → increment to get exclusive start
+        // XREAD is exclusive → increment ID
         std::string next_id = stream.incrementId(raw_id);
 
         std::string err;
@@ -237,41 +234,53 @@ ExecResult CommandHandler::handleXREAD(const std::vector<std::string_view>& args
             return ExecResult(err, false, client_fd);
 
         if (!entries.empty()) {
-            outerArray.push_back(respXRead(key, entries));
+            results.push_back(respXRead(key, entries));
         }
     }
 
     // -------------------------------------------------
-    // 4) If results exist → return immediately
+    // 4) If immediate results exist → return
     // -------------------------------------------------
-    if (!outerArray.empty()) {
-        std::string resp = wrapXReadBlocks(outerArray);
+    if (!results.empty()) {
+        std::string resp = wrapXReadBlocks(results);
         return ExecResult(resp, false, client_fd);
     }
 
     // -------------------------------------------------
-    // 5) If NOT blocking → return NIL ($-1)
+    // 5) Non-blocking mode → return null
     // -------------------------------------------------
     if (!is_blocking) {
-        return ExecResult("$-1\r\n", false, client_fd);
+        return ExecResult("*-1\r\n", false, client_fd);
     }
 
     // -------------------------------------------------
-    // 6) BLOCKING MODE → register client and RETURN EMPTY reply
+    // 6) Blocking mode → store client
     // -------------------------------------------------
     uint64_t now = current_time_ms();
     uint64_t deadline = (block_timeout == 0 ? 0 : now + block_timeout);
 
     for (int i = 0; i < half; i++) {
+        Stream* st = nullptr;
+
+        RedisObj* obj = store.getObject(stream_names[i]);
+        if (obj && obj->type == RedisType::STREAM)
+            st = &std::get<Stream>(obj->value);
+
+        if (!st)
+            continue;
+
+        // Store incremented ID for correct exclusive behavior
+        std::string next_id = st->incrementId(stream_ids[i]);
+
         blockedXReadClients.push_back({
             client_fd,
             deadline,
             stream_names[i],
-            stream_ids[i]
+            next_id
         });
     }
 
-    // EMPTY reply + should_block = true
+    // Empty reply + should_block=true ⇒ EventLoop will not send anything
     return ExecResult("", true, client_fd);
 }
 
