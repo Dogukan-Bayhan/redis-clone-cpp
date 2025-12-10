@@ -1,8 +1,30 @@
-Şimdi ilk olarak biz bir serverı posix sys callar ile dinliyoruz -> int server_fd = socket(AF_INET, SOCK_STREAM, 0); -> Burada server_fd bir file descriptor(1,5 10 gibi bir int). 
+1-> XREAD BLOCK <milliseconds> streams <key1> <key2> <id1> <id2>
+2-> Yeni bir veri yapısı 
+struct BlockedXReadClient {
+    int fd;
+    uint64_t deadline_ms;
+    std::string stream_name;
+    std::string last_id;
+}
 
-Sonrasında öncelikle bir sockaddr_in türünde bir değişken oluşturup bunu IP_4 türünde olan ve portu Redisin kendi orjinal portu olan 6379 a set bind ediyoruz.
+std::vector<BlockedXReadClient> blockedXReadClients;
+Eğer o zaman sonrası bir veri yoksa bu bir vektöre kaydedilir ve timeout ile kontrol edilir.
+3-> Time out:
+void CommandHandler::checkXReadTimeouts() {
+    uint64_t now = current_time_ms();
 
+    for (auto it = blockedXReadClients.begin(); it != blockedXReadClients.end(); ) {
 
-1-> RESP(Redis Serialization Protocol) -> Redisin kendi metinsel iletişim protokolü. Biz de ilk olarak client'tan gelen mesajı önemsemeden her gelen istekte +PONG\r\n response'unu dönüyoruz.
+        // deadline == 0 → infinite block
+        if (it->deadline_ms != 0 && now >= it->deadline_ms) {
+            std::string resp = "*-1\r\n";  // RESP null array
+            ::write(it->fd, resp.c_str(), resp.size());
 
-2-> Şimdi aynı anda hem yeni client hem de bir clienttan birden fazla message alabilmek adına bir event loop kodladım. Burada select çağrısını kullanıyoruz posixten. Select olana kadar kod uykuya dalıyor fakat select çağrıldıktan sonrasında kod 
+            it = blockedXReadClients.erase(it);
+            continue;
+        }
+
+        ++it;
+    }
+}
+4-> Eğer timeout dolmadan XADD çağırılır ise XADD de en son kontrol ve write yapma

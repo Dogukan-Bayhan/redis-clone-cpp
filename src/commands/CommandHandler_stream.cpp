@@ -1,5 +1,6 @@
 #include "./CommandHandler.hpp"
 
+#include <unistd.h>
 
 ExecResult CommandHandler::handleXADD(const std::vector<std::string_view>& args) {
     if (args.size() < 5) 
@@ -113,29 +114,51 @@ ExecResult CommandHandler::handleXRANGE(const std::vector<std::string_view>& arg
 }
 
 ExecResult CommandHandler::handleXREAD(const std::vector<std::string_view>& args) {
-    // Minimum: XREAD STREAMS <stream...> <id...>
-    if (args.size() < 4)
+    //
+    // XREAD [BLOCK ms] STREAMS key1 key2 ... id1 id2 ...
+    //
+    int idx = 1;
+    bool is_blocking = false;
+    uint64_t block_timeout = 0;
+
+    // -------------------------------------------------
+    // 1) Check BLOCK option
+    // -------------------------------------------------
+    if (idx < args.size() && (args[idx] == "BLOCK" || args[idx] == "block")) {
+        is_blocking = true;
+
+        if (idx + 1 >= args.size())
+            return ExecResult("-ERR syntax error\r\n", false, client_fd);
+
+        try {
+            block_timeout = std::stoull(std::string(args[idx + 1]));
+        } catch (...) {
+            return ExecResult("-ERR invalid timeout\r\n", false, client_fd);
+        }
+
+        idx += 2; // skip BLOCK <ms>
+    }
+
+    // -------------------------------------------------
+    // 2) Expect STREAMS keyword
+    // -------------------------------------------------
+    if (idx >= args.size() || args[idx] != "streams")
+        return ExecResult("-ERR syntax error\r\n", false, client_fd);
+
+    idx++; // move past STREAMS
+
+    // From here: STREAMS k1 k2 ... id1 id2 ...
+    int remaining = args.size() - idx;
+
+    if (remaining < 2)
         return ExecResult("-ERR wrong number of arguments for 'XREAD'\r\n",
                           false, client_fd);
 
-    if (args[1] != "streams")
-        return ExecResult("-ERR syntax error\r\n", false, client_fd);
-
-    // -------------------------------------------------
-    // Split arguments into two groups:
-    //   STREAMS  s1 s2 s3   id1 id2 id3
-    // -------------------------------------------------
-    int total = args.size();
-
-    // Find the midpoint: ids begin after half
-    // STREAMS s1 s2 ... id1 id2 ...
-    // So number of stream names = number of ids
-    int half = (total - 2) / 2;
-
-    if ((total - 2) % 2 != 0) {
+    if (remaining % 2 != 0)
         return ExecResult("-ERR XREAD requires equal number of streams and IDs\r\n",
                           false, client_fd);
-    }
+
+    int half = remaining / 2;
 
     std::vector<std::string> stream_names;
     std::vector<std::string> stream_ids;
@@ -143,32 +166,26 @@ ExecResult CommandHandler::handleXREAD(const std::vector<std::string_view>& args
     stream_names.reserve(half);
     stream_ids.reserve(half);
 
-    for (int i = 2; i < 2 + half; i++)
-        stream_names.push_back(std::string(args[i]));
+    for (int i = 0; i < half; i++)
+        stream_names.push_back(std::string(args[idx + i]));
 
-    for (int i = 2 + half; i < total; i++)
-        stream_ids.push_back(std::string(args[i]));
-
-    // Now we have:
-    // streams: [s1, s2, s3]
-    // ids:     [id1, id2, id3]
+    for (int i = 0; i < half; i++)
+        stream_ids.push_back(std::string(args[idx + half + i]));
 
     // -------------------------------------------------
-    // Process each stream independently
+    // 3) Try to read immediately
     // -------------------------------------------------
-    std::vector<std::string> outerArray;  // RESP array of streams
+    std::vector<std::string> outerArray;  
 
     for (int i = 0; i < half; i++) {
-        const std::string& key = stream_names[i];
-        const std::string& id  = stream_ids[i];
+        const std::string &key = stream_names[i];
+        const std::string &id  = stream_ids[i];
 
-        RedisObj* obj = store.getObject(key);
-        if (!obj || obj->type != RedisType::STREAM) {
-            // If the stream doesn’t exist → skip (Redis ignores missing stream)
+        RedisObj *obj = store.getObject(key);
+        if (!obj || obj->type != RedisType::STREAM)
             continue;
-        }
 
-        Stream& stream = std::get<Stream>(obj->value);
+        Stream &stream = std::get<Stream>(obj->value);
 
         std::string err;
         auto entries = stream.getPairsFromIdToEnd(err, id);
@@ -176,18 +193,61 @@ ExecResult CommandHandler::handleXREAD(const std::vector<std::string_view>& args
         if (!err.empty())
             return ExecResult(err, false, client_fd);
 
-        if (entries.empty())
-            continue;  // No results for this stream
-
-        // Encode this stream’s result
-        outerArray.push_back(respXRead(key, entries));
+        if (!entries.empty()) {
+            outerArray.push_back(respXRead(key, entries));
+        }
     }
 
-    // No results from any stream → return nil ($-1)
-    if (outerArray.empty())
-        return ExecResult("$-1\r\n", false, client_fd);
+    // -------------------------------------------------
+    // 4) If results exist → return immediately
+    // -------------------------------------------------
+    if (!outerArray.empty()) {
+        std::string resp = wrapXReadBlocks(outerArray);
+        return ExecResult(resp, false, client_fd);
+    }
 
-    // Build final RESP array
-    std::string resp = wrapXReadBlocks(outerArray);
-    return ExecResult(resp, false, client_fd);
+    // -------------------------------------------------
+    // 5) If NOT blocking → return NIL ($-1)
+    // -------------------------------------------------
+    if (!is_blocking) {
+        return ExecResult("$-1\r\n", false, client_fd);
+    }
+
+    // -------------------------------------------------
+    // 6) BLOCKING MODE → register client and RETURN EMPTY reply
+    // -------------------------------------------------
+    uint64_t now = current_time_ms();
+    uint64_t deadline = (block_timeout == 0 ? 0 : now + block_timeout);
+
+    for (int i = 0; i < half; i++) {
+        blockedXReadClients.push_back({
+            client_fd,
+            deadline,
+            stream_names[i],
+            stream_ids[i]
+        });
+    }
+
+    // EMPTY reply + should_block = true
+    return ExecResult("", true, client_fd);
+}
+
+
+
+void CommandHandler::checkXReadTimeouts() {
+    uint64_t now = current_time_ms();
+
+    for (auto it = blockedXReadClients.begin(); it != blockedXReadClients.end(); ) {
+
+        // deadline == 0 → infinite block
+        if (it->deadline_ms != 0 && now >= it->deadline_ms) {
+            std::string resp = "*-1\r\n";  // RESP null array
+            ::write(it->fd, resp.c_str(), resp.size());
+
+            it = blockedXReadClients.erase(it);
+            continue;
+        }
+
+        ++it;
+    }
 }

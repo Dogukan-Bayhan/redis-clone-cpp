@@ -72,5 +72,6 @@ void EventLoop::run() {
         }
 
         handler.checkTimeouts();
+        handler.checkXReadTimeouts();
     }
 }

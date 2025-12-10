@@ -39,6 +39,8 @@ public:
      * Responses are returned to clients who have previously made a request but whose time has passed.
      */
     void checkTimeouts();
+    void checkXReadTimeouts();
+
 
 private:
     // File descriptor of the currently executing client.
@@ -63,7 +65,9 @@ private:
      * (first client to block is the first to be served).
      */
     std::unordered_map<std::string, std::deque<BlockedClient>> blockedClients;
+    std::vector<BlockedXReadClient> blockedXReadClients;
 
+    
     RedisStore &store;
 
     // --------------------------------------------------------------------
