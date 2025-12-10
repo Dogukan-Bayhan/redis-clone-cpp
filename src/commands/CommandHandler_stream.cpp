@@ -118,7 +118,7 @@ ExecResult CommandHandler::handleXREAD(const std::vector<std::string_view>& args
         return ExecResult("-ERR wrong number of arguments for 'XREAD'\r\n",
                           false, client_fd);
 
-    if (args[1] != "STREAMS")
+    if (args[1] != "streams")
         return ExecResult("-ERR syntax error\r\n", false, client_fd);
 
     // -------------------------------------------------
@@ -161,8 +161,6 @@ ExecResult CommandHandler::handleXREAD(const std::vector<std::string_view>& args
     for (int i = 0; i < half; i++) {
         const std::string& key = stream_names[i];
         const std::string& id  = stream_ids[i];
-
-        std::cout << key << " " << id << std::endl;
 
         RedisObj* obj = store.getObject(key);
         if (!obj || obj->type != RedisType::STREAM) {
