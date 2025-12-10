@@ -619,3 +619,14 @@ Stream::getPairsFromIdToEnd(std::string& err, const std::string& first)
 
     return result;
 }
+
+std::string Stream::incrementId(const std::string& id) {
+    long long ms, seq;
+
+    if (!parseIdToTwoInteger(id, ms, seq)) {
+        return id;
+    }
+
+    seq += 1;
+    return std::to_string(ms) + "-" + std::to_string(seq);
+}

@@ -219,7 +219,7 @@ ExecResult CommandHandler::handleXREAD(const std::vector<std::string_view>& args
 
     for (int i = 0; i < half; i++) {
         const std::string &key = stream_names[i];
-        const std::string &id  = stream_ids[i];
+        const std::string &raw_id  = stream_ids[i];
 
         RedisObj *obj = store.getObject(key);
         if (!obj || obj->type != RedisType::STREAM)
@@ -227,8 +227,11 @@ ExecResult CommandHandler::handleXREAD(const std::vector<std::string_view>& args
 
         Stream &stream = std::get<Stream>(obj->value);
 
+        // GIVEN ID → increment to get exclusive start
+        std::string next_id = stream.incrementId(raw_id);
+
         std::string err;
-        auto entries = stream.getPairsFromIdToEnd(err, id);
+        auto entries = stream.getPairsFromIdToEnd(err, next_id);
 
         if (!err.empty())
             return ExecResult(err, false, client_fd);
