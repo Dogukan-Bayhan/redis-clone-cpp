@@ -630,3 +630,7 @@ std::string Stream::incrementId(const std::string& id) {
     seq += 1;
     return std::to_string(ms) + "-" + std::to_string(seq);
 }
+
+std::string Stream::getLastId() {
+    return entries[entries.size() - 1].id;
+}

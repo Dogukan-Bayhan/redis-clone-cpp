@@ -205,8 +205,9 @@ ExecResult CommandHandler::handleXREAD(const std::vector<std::string_view>& args
     for (int i = 0; i < half; i++)
         stream_names.push_back(std::string(args[idx + i]));
 
-    for (int i = 0; i < half; i++)
+    for (int i = 0; i < half; i++) {
         stream_ids.push_back(std::string(args[idx + half + i]));
+    }
 
     // -------------------------------------------------
     // 3) Immediate read attempt
@@ -270,6 +271,10 @@ ExecResult CommandHandler::handleXREAD(const std::vector<std::string_view>& args
             continue;
 
         // Store incremented ID for correct exclusive behavior
+        if(stream_ids[i] == "$") {
+            stream_ids[i] = st->getLastId();
+        }
+
         std::string next_id = st->incrementId(stream_ids[i]);
 
         blockedXReadClients.push_back({

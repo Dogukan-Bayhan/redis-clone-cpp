@@ -151,5 +151,6 @@ public:
 
   std::string incrementId(const std::string& id);
 
+  std::string getLastId();
   
 };
