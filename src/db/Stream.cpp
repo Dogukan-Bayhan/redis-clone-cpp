@@ -632,5 +632,9 @@ std::string Stream::incrementId(const std::string& id) {
 }
 
 std::string Stream::getLastId() {
-    return entries[entries.size() - 1].id;
+    if (entries.empty()) {
+        // Redis behavior: if stream has no entries, $ corresponds to "0-0"
+        return "0-0";
+    }
+    return entries.back().id;
 }
